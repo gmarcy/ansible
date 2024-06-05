@@ -1,0 +1,9 @@
+#
+# Ansible requirements
+#
+
+---
+
+collections:
+  - name: community.general
+    version: '9.0.1'

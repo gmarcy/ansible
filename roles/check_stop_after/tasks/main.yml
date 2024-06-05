@@ -1,0 +1,30 @@
+---
+
+- name: Update progress and stop the deployment if requested
+  block:
+
+    - name: Add to tasks_completed {{ task_to_check }}
+      ansible.builtin.set_fact:
+        tasks_completed: "{{ tasks_completed | union([task_to_check]) }}"
+      delegate_to: 'playbook-facts'
+      delegate_facts: true
+      vars:
+        tasks_completed: "{{ hostvars['playbook-facts'].tasks_completed | default([]) }}"
+
+    - name: Stop the deployment if required
+      block:
+
+        - name: When requested, stop after task {{ task_to_check }}
+          ansible.builtin.set_fact:
+            playbook_terminated: true
+          delegate_to: 'playbook-facts'
+          delegate_facts: true
+
+        - name: End play
+          ansible.builtin.meta: end_play
+
+      vars:
+        tasks_completed: "{{ hostvars['playbook-facts'].tasks_completed }}"
+      when: stop_after_task is defined and stop_after_task in tasks_completed
+
+  tags: omit_from_grapher

@@ -1,0 +1,10 @@
+---
+
+- name: Set secrets_dir fact
+  ansible.builtin.set_fact:
+    secrets_dir: "{{ '/run/secrets' if (hostvars['playbook-facts'].container_run) else (inv_secrets_dir | default(secrets_vars_dir)) }}"
+
+- name: Load all playbook secrets
+  ansible.builtin.include_vars:
+    dir: "{{ secrets_vars_dir }}"
+    ignore_unknown_extensions: true

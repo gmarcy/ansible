@@ -1,0 +1,7 @@
+ansible
+ansible-lint
+bashate
+flake8
+ruamel.yaml
+shyaml
+yamllint

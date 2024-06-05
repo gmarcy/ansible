@@ -1,0 +1,37 @@
+---
+
+- name: Prepare inventory hosts
+  hosts: playbook-facts
+  gather_facts: false
+  pre_tasks:
+  - assert:
+      that:
+      - hostvars['localhost-facts']['ssh_keypair_path'] is defined
+      - hostvars['localhost-facts']['ssh_keypair_secret'] is defined
+      - groups['inventory_hosts'] is defined
+  tasks:
+  - when: container_run | bool
+    block:
+    - name: Create ~/.ssh folder if needed
+      ansible.builtin.file:
+        path: "{{ ssh_keypair_path | dirname }}"
+        state: directory
+        mode: '0700'
+      changed_when: false
+    - name: Copy ssh key secret into ~/.ssh when running in a container
+      ansible.builtin.copy:
+        content: "{{ lookup('unvault', hostvars['playbook-secrets'][ssh_keypair_secret]) }}"
+        dest: "{{ ssh_keypair_path }}"
+        mode: '0600'
+      changed_when: false
+    vars:
+      ssh_keypair_path: "{{ hostvars['localhost-facts']['ssh_keypair_path'] }}"
+      ssh_keypair_secret: "{{ hostvars['localhost-facts']['ssh_keypair_path'] }}"
+
+- name: Run prepare_host_roles
+  hosts: inventory_hosts
+  gather_facts: false
+  roles:
+  - role: loop_over_roles
+    role_loop: "{{ prepare_host_roles }}"
+    when: prepare_host_roles is defined

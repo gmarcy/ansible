@@ -1,0 +1,21 @@
+---
+
+- name: Add hosts to requested groups
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: "{{ hosts_specs_map[item]['group_names'] | default([]) }}"
+  loop: "{{ hosts_specs_map.keys() | default([]) }}"
+  changed_when: false
+
+- name: Unroll the keys in the hosts_specs_map
+  ansible.builtin.set_fact:
+    hosts_specs_map_unrolled: "{{ hosts_specs_map_unrolled | default([]) | union([item.key] | product(item.value.keys())) }}"
+  loop: "{{ hosts_specs_map | dict2items }}"
+
+- name: Apply values in hosts_specs_map to hosts
+  ansible.builtin.set_fact:
+    "{{ item[1] }}": "{{ hosts_specs_map[item[0]][item[1]] }}"
+  delegate_to: "{{ item[0] }}"
+  delegate_facts: true
+  loop: "{{ hosts_specs_map_unrolled }}"
+  when: item[1] != 'group_names' and hostvars['playbook-facts'][item[1]] is not defined

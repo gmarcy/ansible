@@ -1,0 +1,20 @@
+---
+
+- name: Stop the deployment if requested
+  block:
+
+    - name: Stop the deployment if required
+      block:
+
+        - name: When requested, stop before task {{ task_to_check }}
+          ansible.builtin.set_fact:
+            playbook_terminated: true
+          delegate_to: 'playbook-facts'
+          delegate_facts: true
+
+        - name: End play
+          ansible.builtin.meta: end_play
+
+      when: stop_before_task is defined and stop_before_task == task_to_check
+
+  tags: omit_from_grapher

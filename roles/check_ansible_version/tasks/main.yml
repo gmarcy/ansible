@@ -1,0 +1,9 @@
+---
+
+- name: Check if Ansible meets version requirements.
+  ansible.builtin.assert:
+    that: "ansible_version.full is version_compare('{{ _min_ansible_version }}', '>=')"
+    msg: >
+      "You must update Ansible to at least {{ _min_ansible_version }} to use this ansible collection."
+  vars:
+    _min_ansible_version: "{{ min_ansible_version | default('2.9') }}"

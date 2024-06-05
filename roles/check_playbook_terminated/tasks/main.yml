@@ -1,0 +1,9 @@
+---
+
+- name: Skip play if playbook_terminated
+  ansible.builtin.meta: end_play
+  when: _playbook_terminated
+  tags: omit_from_grapher
+  run_once: true
+  vars:
+    _playbook_terminated: "{{ hostvars['playbook-facts'].playbook_terminated | default(false) }}"

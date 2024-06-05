@@ -1,0 +1,26 @@
+---
+
+- name: Unroll the host_names in the groups_specs_map
+  ansible.builtin.set_fact:
+    groups_specs_hosts_map_unrolled: "{{ groups_specs_hosts_map_unrolled | default([]) | union(item.value.host_names | default([]) | product([item.key])) }}"
+  loop: "{{ groups_specs_map | dict2items }}"
+
+- name: Add hosts to requested groups
+  ansible.builtin.add_host:
+    name: "{{ item[0] }}"
+    groups: "{{ item[1] }}"
+  loop: "{{ groups_specs_hosts_map_unrolled }}"
+  changed_when: false
+
+- name: Unroll the keys in the groups_specs_map
+  ansible.builtin.set_fact:
+    groups_specs_map_unrolled: "{{ groups_specs_map_unrolled | default([]) | union(item.value.host_names | default([]) | product([item.key] | product(item.value.keys()))) }}"
+  loop: "{{ groups_specs_map | dict2items }}"
+
+- name: Apply values in groups_specs_map to hosts
+  ansible.builtin.set_fact:
+    "{{ item[1][1] }}": "{{ groups_specs_map[item[1][0]][item[1][1]] }}"
+  delegate_to: "{{ item[0] }}"
+  delegate_facts: true
+  loop: "{{ groups_specs_map_unrolled }}"
+  when: item[1][1] != 'host_names' and hostvars['playbook-facts'][item[1][1]] is not defined

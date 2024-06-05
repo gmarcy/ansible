@@ -1,0 +1,26 @@
+---
+
+- name: Lookup command-line arguments
+  ansible.builtin.set_fact:
+    cli_args: "{{ lookup('gmarcy.ansible.cli_args') }}"
+
+- name: Set cli_remote_user fact from command-line args
+  ansible.builtin.set_fact:
+    cli_remote_user: "{{ cli_args.remote_user if (cli_args.remote_user is string) else '' }}"
+
+- name: Check for empty remote user when running in a container
+  ansible.builtin.assert:
+    msg:
+      - "You must provide the user for the playbook when running in a container."
+      - "e.g. --user root"
+    that: not hostvars['playbook-facts'].container_run or cli_remote_user | length > 0
+
+- name: Define remote_user
+  ansible.builtin.set_fact:
+    remote_user: "{{ cli_remote_user if (cli_remote_user | length > 0) else hostvars['localhost-facts'].local_user }}"
+  delegate_to: 'playbook-facts'
+  delegate_facts: true
+
+- when: cli_args.extra_vars | length > 0
+  name: Parse extra_vars when present
+  ansible.builtin.include_tasks: parse_extra_vars.yml
