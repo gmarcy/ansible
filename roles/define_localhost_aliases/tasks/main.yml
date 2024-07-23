@@ -1,0 +1,9 @@
+---
+
+- name: Define any missing localhost aliases
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: 'ungrouped'
+  loop: "{{ localhost_aliases }}"
+  changed_when: false
+  when: hostvars[item] is not defined

@@ -1,0 +1,195 @@
+---
+
+- name: Assert that openshift_distro is defined
+  ansible.builtin.assert:
+    that: hostvars['cluster-facts']['openshift_distro'] | default('') | length > 0
+    fail_msg: "The assisted installer service is only available on openshift distributions."
+
+- name: Check if the assisted-installer pod is already running
+  containers.podman.podman_pod_info:
+    name: assisted-installer
+  register: _result
+
+- name: Save the pod state
+  ansible.builtin.set_fact:
+    pod_state: "{{ _result.pods[0].State | default('Unknown') }}"
+
+- name: Set services_dir fact
+  ansible.builtin.set_fact:
+    services_dir: "{{ user_home + '/.assisted/services' }}"
+    assisted_install_host: "{{ inventory_hostname }}"
+  delegate_to: 'assisted-install'
+  delegate_facts: true
+
+- when: pod_state not in ['Running','Degraded']
+  name: Create the pod if needed
+  block:
+
+    - name: Install python3-pip package
+      ansible.builtin.package:
+        name: python3-pip
+        state: present
+        use: "{{ hostvars[inventory_hostname].package_manager }}"
+      become: true
+      become_user: root
+      register: _result
+      failed_when: _result is not defined
+
+    - when: hostvars[inventory_hostname].package_manager == 'community.general.rpm_ostree_pkg'
+      name: Apply rpm-ostree changes
+      ansible.builtin.command: |
+        rpm-ostree apply-live --allow-replacement
+      become: true
+      become_user: root
+      register: _result
+      changed_when: false
+      failed_when: _result is not defined
+
+    - name: Install latest pip module
+      ansible.builtin.pip:
+        name:
+          - pip
+          - setuptools
+          - pyyaml
+        state: latest
+        extra_args: --user
+
+    - name: Create the services directory
+      ansible.builtin.file:
+        path: "{{ hostvars['assisted-install'].services_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Set the ipxe_folder fact
+      ansible.builtin.set_fact:
+        ipxe_folder: "{{ hostvars['assisted-install'].services_dir }}/ipxe"
+
+    - name: Create the ipxe directory
+      ansible.builtin.file:
+        path: "{{ ipxe_folder }}"
+        state: directory
+        mode: '0755'
+
+    - name: Set facts from download_urls
+      ansible.builtin.set_fact:
+        configmap_original: "{{ lookup('url', download_urls.configmap_yml, split_lines=false) | from_yaml }}"
+        configmap_overrides: "{{ lookup('template', 'configmap-overrides.yml.j2') | from_yaml }}"
+        pod_original: "{{ lookup('url', download_urls.pod_yml, split_lines=false) | from_yaml }}"
+        pod_additions: "{{ lookup('template', 'pod-additions.yml.j2') | from_yaml }}"
+      vars:
+        openshift_distro: "{{ hostvars['cluster-facts']['openshift_distro'] }}"
+        disk_encryption_support: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
+        enable_single_node_dnsmasq: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
+        os_images: "{{ lookup('url', download_urls.os_images[openshift_distro], split_lines=false) | from_json }}"
+        release_images: "{{ lookup('url', download_urls.release_images[openshift_distro], split_lines=false) | from_json }}"
+        enable_upgrade_agent: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
+        enable_okd_support: "{{ 'true' if (openshift_distro == 'okd') else 'false' }}"
+
+    - name: Create configmap.yml from original and overrides
+      ansible.builtin.copy:
+        content: "{{ configmap_original | combine(configmap_overrides, recursive=true) | to_nice_yaml(sort_keys=false,indent=2) }}"
+        dest: "{{ hostvars['assisted-install'].services_dir }}/configmap.yml"
+        mode: '0644'
+
+    - name: Combine the pod containers
+      ansible.builtin.set_fact:
+        pod_containers:
+          spec:
+            containers: "{{ pod_original.spec.containers | union(pod_additions.spec.containers) }}"
+
+    - name: Create pod.yml from original and overrides
+      ansible.builtin.copy:
+        content: "{{ pod_original | combine(pod_additions, recursive=true) | combine(pod_containers, recursive=true) | to_nice_yaml(sort_keys=false,indent=2) }}"
+        dest: "{{ hostvars['assisted-install'].services_dir }}/pod.yml"
+        mode: '0644'
+
+    - name: Concatenate configmap.yml and pod.yml into kube.yml
+      ansible.builtin.copy:
+        content: |
+          ---
+          {{ configmap_original | combine(configmap_overrides, recursive=true) | to_nice_yaml(sort_keys=false,indent=2) }}
+          ---
+          {{ pod_original | combine(pod_additions, recursive=true) | combine(pod_containers, recursive=true) | to_nice_yaml(sort_keys=false,indent=2) }}
+        dest: "{{ hostvars['assisted-install'].services_dir }}/kube.yml"
+        mode: '0644'
+
+    - name: Run assisted-service pod
+      containers.podman.podman_play:
+        configmap: "{{ hostvars['assisted-install'].services_dir }}/configmap.yml"
+        kube_file: "{{ hostvars['assisted-install'].services_dir }}/pod.yml"
+        state: started
+
+    - name: Check if we have firewalld installed
+      ansible.builtin.command: |
+        firewall-cmd --version
+      register: _result
+      changed_when: false
+      failed_when: false
+
+    - name: Set firewalld_is_installed fact
+      ansible.builtin.set_fact:
+        firewalld_is_installed: "{{ _result.rc == 0 }}"
+      delegate_to: 'playbook-facts'
+      delegate_facts: true
+
+    - when: hostvars['playbook-facts']['firewalld_is_installed']
+      name: Configure firewalld
+      block:
+
+        - name: Gather current firewalld rules
+          ansible.posix.firewalld_info:
+            active_zones: true
+          register: _result_firewalld_info
+          become: true
+          become_user: root
+
+        - name: Set current_zone_info fact
+          ansible.builtin.set_fact:
+            default_zone: "{{ _default_zone }}"
+            default_zone_info: "{{ _result_firewalld_info.firewalld_info.zones[_default_zone] }}"
+          vars:
+            _default_zone: "{{ _result_firewalld_info.firewalld_info.default_zone }}"
+
+        - name: Set ports_to_open fact
+          ansible.builtin.set_fact:
+            ports_to_open: "{{ ports_to_open | default([]) | union([item]) }}"
+          loop: [['8080', 'tcp'], ['8090', 'tcp'], ['8888', 'tcp']]
+          when: item not in default_zone_info.ports
+
+        - name: Open up any ports to open
+          ansible.posix.firewalld:
+            port: "{{ item[0] + '/' + item[1] }}"
+            permanent: true
+            state: enabled
+            immediate: true
+          loop: "{{ ports_to_open | default([]) }}"
+          become: true
+          become_user: root
+
+    - name: Check REST API
+      ansible.builtin.uri:
+        url: "{{ hostvars['assisted-install'].assisted_install_rest_url }}/clusters"
+      register: _result
+      delay: 5
+      retries: 10
+      until: _result is defined and _result.status == 200
+      delegate_to: 'localhost-facts'
+
+    - name: Check endpoints
+      ansible.builtin.uri:
+        url: "{{ item }}"
+      loop:
+        - "http://{{ assisted_installer_address }}:8090/health"
+        - "http://{{ assisted_installer_address }}:8090/ready"
+        - "http://{{ assisted_installer_address }}:8080/health"
+        - "http://{{ assisted_installer_address }}:8080/healthz"
+        - "http://{{ assisted_installer_address }}:8080/ready"
+        - "http://{{ assisted_installer_address }}:8080/readyz"
+        - "http://{{ assisted_installer_address }}:8080/live"
+        - "http://{{ assisted_installer_address }}:8888/live"
+      delegate_to: 'localhost-facts'
+
+- name: Cleanup facts we no longer need
+  ansible.builtin.set_fact:
+    _result: {}
+    _result_stat: {}

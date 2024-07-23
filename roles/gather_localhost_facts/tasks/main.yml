@@ -29,17 +29,13 @@
   name: Process localhost_spec
   block:
 
-  - name: Load localhost_spec from cli param into a dictionary
-    ansible.builtin.set_fact:
-      localhost_map: "{{ localhost_spec | from_json }}"
-
   - name: Set facts from localhost_spec
     ansible.builtin.set_fact:
-      "{{ item }}": "{{ localhost_map[item] }}"
-    loop: "{{ localhost_map.keys() | default([]) }}"
+      "{{ item }}": "{{ localhost_spec[item] }}"
+    loop: "{{ localhost_spec.keys() | default([]) }}"
 
-# - name: Set ssh_keypair_name derived facts
-#   set_fact:
-#     ssh_keypair_path: "{{ local_home + '/.ssh/' + ssh_keypairs[ssh_keypair_name].path_prefix + 'id_' + ssh_keytype }}"
-#     ssh_keypair_secret: "{{ ssh_keypairs[ssh_keypair_name].secret }}"
-#   when: ssh_keypair_name is defined
+- name: Set ssh_keypair_name derived facts
+  ansible.builtin.set_fact:
+    ssh_keypair_path: "{{ local_home + '/.ssh/' + ssh_keypairs[ssh_keypair_name].path_prefix + 'id_' + ssh_keytype }}"
+    ssh_keypair_secret: "{{ ssh_keypairs[ssh_keypair_name].secret }}"
+  when: ssh_keypair_name is defined

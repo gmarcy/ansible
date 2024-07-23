@@ -1,0 +1,99 @@
+---
+
+- name: Create undefined localhost aliases
+  hosts: localhost-facts
+  become: false
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.define_localhost_aliases
+    localhost_aliases:
+    - 'cluster-facts'
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.check_stop_before
+    task_to_check: task-request-cluster
+
+- name: Set cluster-facts dependent upon localhost-facts
+  hosts: cluster-facts
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.cluster_facts_init
+
+- name: "{{ 'Request a cluster from ' + hostvars['cluster-facts']['cluster_provisioner'] | default('undefined cluster provisioner') }}"
+  hosts: "{{ hostvars['cluster-facts']['cluster_provisioner'] | default('cluster-facts') }}"
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.end_current_play
+    when: inventory_hostname == 'cluster-facts' or provisioning_role is not defined
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ provisioning_role }}"
+
+- name: "Prepare nodes using node_prepare_role when requested"
+  hosts: "{{ groups['all_nodes'] | default('cluster-facts') }}"
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ node_prepare_role }}"
+
+- name: Generate cluster secrets using cluster_secrets_role when requested
+  hosts: playbook-secrets
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ hostvars['cluster-facts']['cluster_secrets_role'] or omit }}"
+
+- name: Gather facts from all nodes
+  hosts: "{{ groups['all_nodes'] | default('cluster-facts') }}"
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.setup_ansible_host
+    when: inventory_hostname != 'cluster-facts'
+  - role: gmarcy.ansible.gather_host_facts
+    when: inventory_hostname != 'cluster-facts'
+
+# Do this in node_provisioning_role
+# - name: Setup services running in infra node
+#   hosts: "{{ groups['infra_node'] | default('cluster-facts') }}"
+#   gather_facts: false
+#   tags: request_cluster
+#   vars:
+#     deploy_infra_services: "{{ hostvars[hostvars['cluster-facts']['cluster_provisioner']]['deploy_infra_services'] | default(false) }}"
+#   roles:
+#   - role: infra_services_deploy
+#     when: deploy_infra_services
+
+- name: "Provision nodes using node_provisioning_role when requested"
+  hosts: "{{ groups['all_nodes'] | default('cluster-facts') }}"
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ hostvars['cluster-facts']['cluster_provisioner']['node_provisioning_role'] or omit }}"
+
+- name: "Run any post_provisioning_roles when requested"
+  hosts: "{{ hostvars['cluster-facts']['cluster_provisioner'] | default('cluster-facts') }}"
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.loop_over_roles
+    role_loop: "{{ hostvars[hostvars['cluster-facts']['cluster_provisioner']]['post_provisioning_roles'] or omit }}"
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.check_stop_after
+    task_to_check: task-request-cluster

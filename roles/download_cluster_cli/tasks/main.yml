@@ -1,0 +1,29 @@
+---
+
+- name: Set cluster_cli_path fact
+  ansible.builtin.set_fact:
+    cluster_cli_path: "{{ cluster_bin_dir + '/oc' }}"
+
+- name: Check if we already have the cli
+  ansible.builtin.stat:
+    path: "{{ cluster_cli_path }}"
+  register: _result
+
+- when: not _result.stat.exists
+  name: Download the cli
+  block:
+
+    - name: Create cluster bin directory if absent
+      ansible.builtin.file:
+        path: "{{ cluster_bin_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download the client tools
+      ansible.builtin.unarchive:
+        src: "{{ cluster_client_tools[client_os].url }}"
+        dest: "{{ cluster_bin_dir }}"
+        remote_src: true
+        validate_certs: false
+      register: _result
+      until: _result is defined

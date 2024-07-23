@@ -1,0 +1,19 @@
+---
+
+- name: Find address of assisted_install_host interface on cluster network
+  hosts: assisted_install_host
+  gather_facts: false
+  tags: setup_installer
+  roles:
+  - role: gmarcy.ansible.find_address_on_cluster_network
+
+- name: Setup assisted-installer pod
+  hosts: assisted_install_host
+  gather_facts: false
+  tags: setup_installer
+  roles:
+  - role: gmarcy.ansible.services_enable_linger
+  - role: gmarcy.ansible.services_enable_remote_podman
+  - role: gmarcy.ansible.assisted_setup_installer
+    assisted_installer_address: "{{ address_on_cluster_network }}"
+    openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"

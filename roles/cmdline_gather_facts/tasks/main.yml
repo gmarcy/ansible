@@ -15,12 +15,26 @@
       - "e.g. --user root"
     that: not hostvars['playbook-facts'].container_run or cli_remote_user | length > 0
 
-- name: Define remote_user
+- name: "Create map of all hosts declared using *host(s)_spec hostvars"
   ansible.builtin.set_fact:
-    remote_user: "{{ cli_remote_user if (cli_remote_user | length > 0) else hostvars['localhost-facts'].local_user }}"
-  delegate_to: 'playbook-facts'
-  delegate_facts: true
+    hosts_specs_map: "{{ hosts_specs_map | default({}) | combine(item_value) }}"
+  loop: "{{ hosts_specs_keys }}"
+  vars:
+    hosts_specs_keys: "{{ hostvars[inventory_hostname].keys() | select('match', '(hosts?_spec|.*_hosts?_spec)') | flatten }}"
+    item_value: "{{ hostvars[inventory_hostname][item] }}"
 
-- when: cli_args.extra_vars | length > 0
-  name: Parse extra_vars when present
-  ansible.builtin.include_tasks: parse_extra_vars.yml
+- when: (hosts_specs_map | default({})).keys() | length > 0
+  name: Parse hosts_specs_map when present
+  ansible.builtin.include_tasks: parse_hosts_spec.yml
+
+- name: "Create map of all groups declared using *group(s)_spec extra vars"
+  ansible.builtin.set_fact:
+    groups_specs_map: "{{ groups_specs_map | default({}) | combine(item_value) }}"
+  loop: "{{ groups_specs_keys }}"
+  vars:
+    groups_specs_keys: "{{ hostvars[inventory_hostname].keys() | select('match', '(groups?_spec|.*_groups?_spec)') | flatten }}"
+    item_value: "{{ hostvars[inventory_hostname][item] }}"
+
+- when: (groups_specs_map | default({})).keys() | length > 0
+  name: Parse groups_specs_map when present
+  ansible.builtin.include_tasks: parse_groups_spec.yml

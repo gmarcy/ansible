@@ -1,0 +1,84 @@
+---
+
+- name: Create undefined localhost aliases
+  hosts: localhost-facts
+  become: false
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.define_localhost_aliases
+    localhost_aliases:
+    - 'cluster-facts'
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.check_stop_before
+    task_to_check: task-gather-cluster-facts
+
+- name: Set cluster-facts dependent upon localhost-facts
+  hosts: cluster-facts
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.cluster_facts_init
+
+- name: Determine cluster name
+  hosts: cluster-facts
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.cluster_lookup_name
+    when: cluster_name is not defined
+
+- name: Load cluster-facts.yaml if is exists
+  hosts: cluster-facts
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.cluster_load_facts
+
+- name: "{{ 'Gather ' + hostvars['cluster-facts']['cluster_provisioner'] | default('no cluster provisioner') + ' cluster facts' }}"
+  hosts: cluster-facts
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ hostvars[cluster_provisioner]['cluster_facts_role'] }}"
+    when: cluster_provisioner is defined and hostvars[cluster_provisioner]['cluster_facts_role'] is defined
+
+- name: Upsert cluster kubeconfig into shared kubeconfig
+  hosts: cluster-facts
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.update_shared_kubeconfig
+
+- name: Generate cluster secrets using cluster_secrets_role when requested
+  hosts: playbook-secrets
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ hostvars['cluster-facts']['cluster_secrets_role'] }}"
+    when: hostvars['cluster-facts']['cluster_secrets_role'] is defined
+
+- name: Gather host facts from all nodes
+  hosts: "{{ groups['all_nodes'] | default('cluster-facts') }}"
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.gather_host_facts
+    when: groups['all_nodes'] is defined
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.check_stop_after
+    task_to_check: task-gather-cluster-facts

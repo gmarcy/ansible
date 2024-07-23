@@ -1,0 +1,35 @@
+---
+
+- name: We need either a cluster name or a provisioner
+  ansible.builtin.assert:
+    that: cluster_name is defined or cluster_provisioner is defined
+
+- name: Set facts based on local_home
+  ansible.builtin.set_fact:
+    clusters_basedir: "{{ local_home + '/.kube/clusters' }}"
+    clusters_shared_kubeconfig_path: "{{ local_home + '/.kube/config' }}"
+  vars:
+    local_home: "{{ hostvars['localhost-facts'].local_home }}"
+
+- name: Set facts based on cluster_name
+  ansible.builtin.set_fact:
+    cluster_dir: "{{ local_home + '/.kube/clusters/' + cluster_name }}"
+    cluster_bin_dir: "{{ local_home + '/.kube/clusters/' + cluster_name + '/bin' }}"
+  vars:
+    local_home: "{{ hostvars['localhost-facts'].local_home }}"
+  when: cluster_name is defined
+
+- name: Check to see if we already have a shared kubeconfig
+  ansible.builtin.stat:
+    path: "{{ clusters_shared_kubeconfig_path }}"
+  register: _result
+
+- when: _result.stat.exists
+  name: Load contents of the shared kubeconfig
+  ansible.builtin.set_fact:
+    shared_kubeconfig: "{{ lookup('file', clusters_shared_kubeconfig_path, split_lines=false) | from_yaml }}"
+  no_log: "{{ true or noLog }}"
+
+- name: Clear temp fact
+  ansible.builtin.set_fact:
+    _result: {}

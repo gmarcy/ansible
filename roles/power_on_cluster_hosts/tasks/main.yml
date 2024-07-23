@@ -1,0 +1,87 @@
+---
+
+- name: Set ipmi facts for all cluster hosts
+  ansible.builtin.set_fact:
+    cluster_ipmi_hosts: "{{ cluster_ipmi_hosts | default([]) | union([item[1] | combine({'name': item[0]})]) }}"
+  loop: "{{ cluster_host_names | zip(cluster_host_names | map('extract', hostvars, 'ipmi_info')) }}"
+  when: item[1].interface != 'none'
+
+- when: cluster_ipmi_hosts is defined
+  name: Process all hosts which have ipmi info
+  block:
+
+    - name: Set fact for common ipmitool arguments
+      ansible.builtin.set_fact:
+        ipmitool_args: "-E -U {{ lookup('unvault', ipmitool_username) | trim }}"
+
+    - name: Check the power status of the cluster hosts
+      ansible.builtin.command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power status
+      environment:
+        IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
+      loop: "{{ cluster_ipmi_hosts }}"
+      vars:
+        ipmitool_interface: "{{ item.interface }}"
+        ipmitool_host: "{{ item.address }}"
+      register: _result_power_status
+      changed_when: false
+
+    - name: Collect list of powered off hosts
+      ansible.builtin.set_fact:
+        ipmi_hosts_powered_off: "{{ ipmi_hosts_powered_off | default([]) | union([item.item]) }}"
+      loop: "{{ _result_power_status.results }}"
+      when: item.stdout == 'Chassis Power is off'
+
+    - name: Clear intermediate results
+      ansible.builtin.set_fact:
+        _result_power_status: {}
+
+    - when: ipmi_hosts_powered_off is defined
+      name: Power on hosts if any are powered off
+      block:
+
+        - name: Change server boot state
+          ansible.builtin.command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis bootdev pxe options=efiboot
+          environment:
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
+          loop: "{{ ipmi_hosts_powered_off }}"
+          vars:
+            ipmitool_interface: "{{ item.interface }}"
+            ipmitool_host: "{{ item.address }}"
+          register: _result
+          changed_when: false
+
+        - name: Get bootparam info to confirm we are ready for power on
+          ansible.builtin.command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis bootparam get 5
+          environment:
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
+          loop: "{{ ipmi_hosts_powered_off }}"
+          vars:
+            ipmitool_interface: "{{ item.interface }}"
+            ipmitool_host: "{{ item.address }}"
+          register: _result
+          changed_when: false
+
+        - name: Power on the cluster hosts
+          ansible.builtin.command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power on
+          environment:
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
+          loop: "{{ ipmi_hosts_powered_off }}"
+          vars:
+            ipmitool_interface: "{{ item.interface }}"
+            ipmitool_host: "{{ item.address }}"
+          register: _result
+          changed_when: false
+
+        - name: Confirm the power is on for cluster hosts
+          ansible.builtin.command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power status
+          environment:
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
+          loop: "{{ ipmi_hosts_powered_off }}"
+          vars:
+            ipmitool_interface: "{{ item.interface }}"
+            ipmitool_host: "{{ item.address | default('') }}"
+          register: _result
+          delay: 5
+          retries: 12
+          until: _result.stdout == 'Chassis Power is on'
+          changed_when: false

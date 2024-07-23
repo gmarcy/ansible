@@ -1,0 +1,8 @@
+---
+
+- name: Reinstall the operating system
+  hosts: inventory_hosts
+  gather_facts: false
+  roles:
+  - role: gmarcy.ansible.reinstall_set_boot_from_network
+  - role: gmarcy.ansible.reinstall_reboot

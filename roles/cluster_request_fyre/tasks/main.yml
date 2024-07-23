@@ -1,0 +1,18 @@
+---
+
+- name: Assert that we have a cluster_name fact
+  ansible.builtin.assert:
+    that: cluster_name is defined and cluster_name | length > 0
+    msg: "Provisioning a fyre cluster requires a cluster_name fact"
+
+- name: Request an OpenShift cluster from Fyre
+  when: hostvars['cluster-facts']['kubernetes_distro'] == 'openshift'
+  ansible.builtin.import_role:
+    name: cluster_request_fyre_ocp
+  vars:
+    ssh_public_key: "{{ hostvars['playbook-secrets']['ssh_public_key'] }}"
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    ocpVersion: "{{ hostvars['cluster-facts']['openshift_version'] }}"
+    ocpPlatform: "{{ fyre_platform }}"
+    quickburn_ttl: "{{ fyre_quickburn_ttl }}"

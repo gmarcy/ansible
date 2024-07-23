@@ -1,0 +1,19 @@
+---
+
+- name: Print information for cluster api
+  ansible.builtin.debug:
+    msg:
+      - "System is ready with {{ description }} Installed, Cluster can be found at: "
+      - "API URL: {{ cluster_api_url }}"
+      - ""
+      - "export KUBECONFIG={{ kubeconfig_path }}"
+  changed_when: true
+
+- name: Print information for cluster console
+  ansible.builtin.debug:
+    msg:
+      - "Console URL: {{ console_url }}"
+      # - "Console Username: {{ console_username }}"
+      # - "Console Password: {{ console_password }}"
+  changed_when: true
+  when: console_url is defined

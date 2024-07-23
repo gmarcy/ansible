@@ -1,0 +1,34 @@
+---
+
+- name: See if cluster-facts.yaml exists
+  ansible.builtin.stat:
+    path: "{{ cluster_dir + '/cluster-facts.yaml' }}"
+  register: _result
+
+- when: _result.stat.exists
+  name: Load the facts from the file
+  block:
+
+  - name: Load cluster-facts file
+    ansible.builtin.set_fact:
+      _cluster_facts: "{{ lookup('file', cluster_dir + '/cluster-facts.yaml', errors='ignore', split_lines=false) | from_yaml }}"
+
+  - name: Set facts from file
+    ansible.builtin.set_fact:
+      "{{ item }}": "{{ _cluster_facts[item] }}"
+    loop: "{{ _cluster_facts.keys() }}"
+
+  - name: Set facts derived from cluster-facts.yaml
+    ansible.builtin.set_fact:
+      cluster_api_url: "{{ 'https://api.' + cluster_fqdn + ':6443' }}"
+      cluster_domain: "{{ (cluster_fqdn | split('.'))[1:] | join('.') }}"
+      cluster_publicip: "{{ lookup('community.general.dig', 'api.' + cluster_fqdn) }}"
+      console_url: "{{ 'https://console-openshift-console.apps.' + cluster_fqdn }}"
+      console_username: "{{ 'kubeadmin' if console_password is defined else omit }}"
+      kubeconfig_path: "{{ cluster_dir + '/kubeconfig' }}"
+
+  - name: Add host for cluster_provisioner if not present
+    ansible.builtin.add_host:
+      name: "{{ cluster_provisioner }}"
+    when: hostvars[cluster_provisioner] is not defined
+    changed_when: false

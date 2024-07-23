@@ -4,6 +4,7 @@ skip_list:
   - 'experimental'              # Dont add any experimental rule
   - 'key-order'
   - 'truthy'
+  - 'yaml[indentation]'
   - 'line-length'               # [E204] Lines should be no longer than 120 chars
   - 'command-instead-of-module' # [E303] sed used in place of template, replace or lineinfile module
   - 'package-latest'            # [E403] Package installs should not use latest
@@ -11,3 +12,4 @@ skip_list:
   - 'schema'
   - 'git-latest'                # Git checkouts must contain explicit version.
   - 'var-naming'
+  - 'no-free-form'

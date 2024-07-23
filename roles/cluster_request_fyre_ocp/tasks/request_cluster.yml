@@ -1,0 +1,156 @@
+---
+
+- name: Print message that cluster was not found
+  ansible.builtin.debug:
+    msg: "{{ 'Cluster was not found so creating new cluster called ' + cluster_name }}"
+
+- when: ocpVersion != 'custom'
+  name: Set parameters for non-custom clusters
+  block:
+
+    - when: ocpVersion == 'latest'
+      name: Set pattern for latest version
+      ansible.builtin.set_fact:
+        _pattern: '[0-9]+\.[0-9]+\.[0-9]+'
+
+    - when: ocpVersion != 'latest'
+      name: Set pattern for specific version
+      ansible.builtin.set_fact:
+        _pattern: "{{ _version_split[0] + '\\.' + _version_split[1] + '\\.' + ('[0-9]+' if (_version_split | length == 2 or _version_split[2] == '0') else _version_split[2]) }}"
+      vars:
+        _version_split: "{{ ocpVersion | string | split('.') }}"
+
+    - name: Get list of supported versions
+      ansible.builtin.uri:
+        url: "{{ fyreocpplus_ocpavailableurl }}"
+        method: "GET"
+        user: "{{ lookup('unvault', fyreuser) | trim }}"
+        password: "{{ lookup('unvault', fyreapikey) | trim }}"
+        validate_certs: false
+        force_basic_auth: "{{ fyre_force_basic_auth }}"
+      vars:
+        fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+        fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+      register: _result
+
+    - name: Set the _ocp_version fact
+      ansible.builtin.set_fact:
+        _ocp_version: "{{ _result.json.ocp_versions | select('match', _pattern) | first | default('') }}"
+
+    - name: Assert that we found a match
+      ansible.builtin.assert:
+        that: _ocp_version != ''
+        msg: "{{ ocpVersion | string + ' was not found in the list of OCP versions that Fyre supports.' }}"
+
+    - name: Only use quota type, t-shirt size, and ttl for quickburn
+      ansible.builtin.set_fact:
+        _quota_type: "quick_burn"
+        _size: "{{ fyre_quickburn_size }}"
+        _time_to_live: "{{ fyre_quickburn_ttl }}"
+      when: fyre_ocptype == 'quickburn'
+
+    - name: Only set _worker/_master when not quickburn
+      ansible.builtin.set_fact:
+        _worker:
+        - count: "{{ fyre_worker_quantity }}"
+          cpu: "{{ fyre_worker_cpu }}"
+          memory: "{{ fyre_worker_memory }}"
+          additional_disk: "{{ fyre_worker_additional_disk | default(omit) }}"
+        _master:
+        - count: "{{ fyre_master_quantity }}"
+          cpu: "{{ fyre_master_cpu }}"
+          memory: "{{ fyre_master_memory }}"
+      when: fyre_ocptype != 'quickburn'
+
+- when: ocpVersion == 'custom'
+  name: Set parameters for custom clusters
+  block:
+
+    - name: Fetch sha256sum for rhcos_version_path
+      ansible.builtin.uri:
+        url: "{{ rhcos_sha_url }}"
+        return_content: true
+      register: _result
+
+    - name: Set rhcos sha related facts
+      ansible.builtin.set_fact:
+        kernel_url: "{{ rhcos_url_prefix + (_result.content.split() | select('match', '.*kernel-x86_64.*') | list | first) }}"
+        initramfs_url: "{{ rhcos_url_prefix + (_result.content.split() | select('match', '.*initramfs.x86_64.*')  | list | first) }}"
+        rootfs_url: "{{ rhcos_url_prefix + (_result.content.split() | select('match', '.*rootfs.x86_64.*') | list | first) }}"
+        metal_url: "{{ rhcos_url_prefix + (_result.content.split() | select('match', '.*metal.x86_64.*')  | list | first) }}"
+
+    - name: Fetch sha256sum for ocp version_path
+      ansible.builtin.uri:
+        url: "{{ clients_sha_url }}"
+        return_content: true
+      register: _result
+
+    - name: Set other custom ocp version facts
+      ansible.builtin.set_fact:
+        _fips: "no"
+        _custom_ocp: "yes"
+        _install_url: "{{ clients_url_prefix + (_result.content.split() | select('match', '.*openshift-install-linux-.*') | list | first) }}"
+        _client_url: "{{ clients_url_prefix + (_result.content.split() | select('match', '.*openshift-client-linux-.*') | list | first) }}"
+
+- name: Create Fyre stack
+  ansible.builtin.uri:
+    url: "{{ fyreocpplus_ocpdeployurl }}"
+    method: "POST"
+    user: "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
+    body_format: "json"
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+    body:
+      name: "{{ cluster_name }}"
+      platform: "{{ ocpPlatform }}"
+      fips: "{{ _fips | default(omit) }}"
+      ssh_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
+      ocp_version: "{{ _ocp_version | default(omit) }}"
+      custom_ocp: "{{ _custom_ocp | default(omit) }}"
+      site: "{{ fyre_site | default(omit) }}"
+      product_group_id: "{{ fyre_group_id }}"
+      kernel_url: "{{ kernel_url | default(omit) }}"
+      initramfs_url: "{{ initramfs_url | default(omit) }}"
+      rootfs_url: "{{ rootfs_url | default(omit) }}"
+      metal_url: "{{ metal_url | default(omit) }}"
+      install_url: "{{ _install_url | default(omit) }}"
+      client_url: "{{ _client_url | default(omit) }}"
+      quota_type: "{{ _quota_type | default(omit) }}"
+      size: "{{ _size | default(omit) }}"
+      time_to_live: "{{ _time_to_live | default(omit) }}"
+      worker: "{{ _worker | default(omit) }}"
+      master: "{{ _master | default(omit) }}"
+  vars:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+  register: _result
+  failed_when: _result.status | default(-1) not in [-1,200]
+  delay: 20
+  retries: 600
+  until: _result.status != -1
+
+- name: Check fyre status
+  when: _result.json.status != 'success'
+  ansible.builtin.fail:
+    msg: "{{ _result }}"
+
+- name: Remove previous cluster dir
+  ansible.builtin.file:
+    path: "{{ cluster_dir }}"
+    state: absent
+
+- name: Clear temporary facts
+  ansible.builtin.set_fact:
+    _client_url: "{{ '' if _client_url is defined else omit }}"
+    _custom_ocp: "{{ '' if _custom_ocp is defined else omit }}"
+    _fips: "{{ '' if _fips is defined else omit }}"
+    _install_url: "{{ '' if _install_url is defined else omit }}"
+    _master: "{{ '' if _master is defined else omit }}"
+    _ocp_version: "{{ '' if _ocp_version is defined else omit }}"
+    _pattern: "{{ '' if _pattern is defined else omit }}"
+    _quota_type: "{{ '' if _quota_type is defined else omit }}"
+    _result: {}
+    _size: "{{ '' if _size is defined else omit }}"
+    _time_to_live: "{{ '' if _time_to_live is defined else omit }}"
+    _worker: "{{ '' if _worker is defined else omit }}"
