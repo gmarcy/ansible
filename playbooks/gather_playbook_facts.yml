@@ -1,5 +1,18 @@
 ---
 
+- name: Create undefined localhost aliases
+  hosts: "{{ 'localhost-facts' if 'localhost-facts' in groups['ungrouped'] else 'localhost' }}"
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: gmarcy.ansible.define_localhost_aliases
+    localhost_aliases:
+    - 'localhost-facts'
+    - 'playbook-facts'
+    - 'cmdline-facts'
+    - 'playbook-secrets'
+
 - name: Check ansible version
   hosts: localhost-facts
   become: false
@@ -14,18 +27,8 @@
   gather_facts: false
   tags: playbook_facts
   roles:
-  - role: gmarcy.ansible.check_playbook_terminated
   - role: gmarcy.ansible.check_stop_before
     task_to_check: task-gather-playbook-facts
-
-- name: Gather localhost facts for this playbook
-  hosts: localhost-facts
-  become: false
-  gather_facts: false
-  tags: playbook_facts
-  roles:
-  - role: gmarcy.ansible.check_playbook_terminated
-  - role: gmarcy.ansible.gather_localhost_facts
 
 - name: Gather command line facts
   hosts: cmdline-facts
@@ -33,8 +36,23 @@
   gather_facts: false
   tags: playbook_facts
   roles:
-  - role: gmarcy.ansible.check_playbook_terminated
   - role: gmarcy.ansible.cmdline_gather_facts
+
+- name: Gather localhost facts for this playbook
+  hosts: localhost-facts
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: gmarcy.ansible.gather_localhost_facts
+
+- name: Set playbook facts derived from cmdline and localhost facts
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: gmarcy.ansible.set_remote_user
 
 - name: Load playbook secrets we will use during this playbook
   hosts: playbook-secrets
@@ -42,86 +60,76 @@
   gather_facts: false
   tags: playbook_facts
   roles:
-  - role: gmarcy.ansible.check_playbook_terminated
   - role: gmarcy.ansible.load_playbook_secrets
 
-- name: Copy secret for ssh_keypair_name to ssh_keypair_path when running in container
-  hosts: localhost-facts
-  become: false
-  gather_facts: false
-  tags: playbook_facts
-  roles:
-  - role: gmarcy.ansible.check_playbook_terminated
-  tasks:
-  - when: hostvars['playbook-facts'].container_run | bool
-    block:
-    - name: Create ~/.ssh folder if needed
-      ansible.builtin.file:
-        path: "{{ ssh_keypair_path | dirname }}"
-        state: directory
-        mode: '0700'
-      changed_when: false
-    - name: Copy ssh key secret into ~/.ssh when running in a container
-      ansible.builtin.copy:
-        content: "{{ lookup('unvault', hostvars['playbook-secrets'][ssh_keypair_secret]) }}"
-        dest: "{{ ssh_keypair_path }}"
-        mode: '0600'
-      changed_when: false
+# - name: Copy secret for ssh_keypair_name to ssh_keypair_path when running in container
+#   hosts: localhost-facts
+#   become: false
+#   gather_facts: false
+#   tags: playbook_facts
+#   tasks:
+#   - when: hostvars['playbook-facts'].container_run | bool
+#     block:
+#     - name: Create ~/.ssh folder if needed
+#       ansible.builtin.file:
+#         path: "{{ ssh_keypair_path | dirname }}"
+#         state: directory
+#         mode: '0700'
+#       changed_when: false
+#     - name: Copy ssh key secret into ~/.ssh when running in a container
+#       ansible.builtin.copy:
+#         content: "{{ lookup('unvault', hostvars['playbook-secrets'][ssh_keypair_secret]) }}"
+#         dest: "{{ ssh_keypair_path }}"
+#         mode: '0600'
+#       changed_when: false
 
-- name: Prepare inventory_hosts
-  hosts: playbook-facts
-  become: false
-  gather_facts: false
-  roles:
-  - role: gmarcy.ansible.check_playbook_terminated
-  tasks:
-  - name: Add all inventory_hosts to the inventory_hosts group
-    ansible.builtin.add_host:
-      host: "{{ item }}"
-      group: 'inventory_hosts'
-    loop: "{{ inventory_hosts | default([]) }}"
-    changed_when: false
-  - name: Prepare ssh keypairs when running in a container
-    ansible.builtin.include_role:
-      name: prepare_container_ssh
-    when: container_run | bool
-  - name: Set ansible_ssh_extra_args fact for each inventory host
-    ansible.builtin.set_fact:
-      ansible_ssh_extra_args: "-F /dev/null -i {{ hostvars['localhost-facts'].ssh_keypair_path }}"
-    loop: "{{ inventory_hosts | default([]) }}"
-    loop_control:
-      loop_var: inventory_host
-    delegate_to: "{{ inventory_host }}"
-    delegate_facts: true
+# - name: Prepare inventory_hosts
+#   hosts: playbook-facts
+#   become: false
+#   gather_facts: false
+#   tags: playbook_facts
+#   tasks:
+#   - name: Prepare ssh keypairs when running in a container
+#     ansible.builtin.include_role:
+#       name: prepare_container_ssh
+#     when: container_run | bool
+#   - name: Set ansible_ssh_extra_args fact for each inventory host
+#     ansible.builtin.set_fact:
+#       ansible_ssh_extra_args: "-F /dev/null -i {{ hostvars['localhost-facts'].ssh_keypair_path }}"
+#     loop: "{{ inventory_hosts | default([]) }}"
+#     loop_control:
+#       loop_var: inventory_host
+#     delegate_to: "{{ inventory_host }}"
+#     delegate_facts: true
 
 - name: Collect all inventory hosts with gathering roles
   hosts: playbook-facts
   become: false
   gather_facts: false
+  tags: playbook_facts
   roles:
-  - role: gmarcy.ansible.check_playbook_terminated
-  tasks:
-  - name: Set gathering_hosts fact
-    ansible.builtin.set_fact:
-      gathering_hosts: "{{ gathering_hosts | default([]) | union([gathering_host]) }}"
-    loop: "{{ inventory_hosts | default([]) }}"
-    loop_control:
-      loop_var: gathering_host
-    when: hostvars[gathering_host]['gathering_roles'] is defined
+  - role: gmarcy.ansible.collect_gathering_hosts
 
 - name: Call the gathering_roles defined for any hosts in the inventory
   hosts: "{{ hostvars['playbook-facts'].gathering_hosts | default('playbook-facts') }}"
   become: false
   gather_facts: false
   roles:
-  - role: gmarcy.ansible.check_playbook_terminated
-  tasks:
-  - name: "Including {{ gathering_roles | default('no') }} gathering roles"
-    ansible.builtin.include_role:
-      name: "{{ gathering_role }}"
-    loop: "{{ gathering_roles | default([]) }}"
-    loop_control:
-      loop_var: gathering_role
+  - role: gmarcy.ansible.loop_over_roles
+    role_loop: "{{ gathering_roles }}"
+    when: gathering_roles is defined
+
+- name: Set cluster-facts dependent upon localhost-facts
+  hosts: "{{ 'cluster-facts' if hostvars['cluster-facts'] is defined else 'playbook-facts' }}"
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: gmarcy.ansible.end_current_play
+    when: hostvars['cluster-facts'] is not defined
+  - role: gmarcy.ansible.cluster_facts_init
+  - role: gmarcy.ansible.cluster_load_facts
+    when: cluster_dir is defined
 
 - name: Check if requested to stop here
   hosts: playbook-facts
@@ -129,6 +137,5 @@
   gather_facts: false
   tags: playbook_facts
   roles:
-  - role: gmarcy.ansible.check_playbook_terminated
   - role: gmarcy.ansible.check_stop_after
     task_to_check: task-gather-playbook-facts

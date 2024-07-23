@@ -1,0 +1,126 @@
+---
+
+- name: Set facts used in this role
+  ansible.builtin.set_fact:
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    fyre_user: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyre_apikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+
+- name: Assert that the inventory_hostname is 'fyre-provisioner'
+  ansible.builtin.assert:
+    that: inventory_hostname == 'fyre-provisioner'
+    msg: "{{ 'The inventory_hostname for this role was \"' + inventory_hostname + '\" and not \"fyre-provisioner\"' }}"
+
+- name: Check if the name is in use
+  ansible.builtin.uri:
+    url: "{{ hostvars['fyre-provisioner']['ocpplus_check_hostname'] }}"
+    method: "GET"
+    user: "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
+    force_basic_auth: "{{ hostvars['fyre-provisioner']['fyre_force_basic_auth'] }}"
+  vars:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+  register: _result
+  changed_when: false
+  failed_when: _result.status | default(404) not in [-1,200]
+  delay: 20
+  retries: 600
+  until: _result.status != -1
+
+- when: _result.json.status == 'success'
+  name: Remove stale cluster dir
+  ansible.builtin.file:
+    path: "{{ cluster_dir }}"
+    state: absent
+
+- name: Assert that the cluster exists
+  ansible.builtin.assert:
+    that: _result.json.status != 'success'
+    msg: "{{ 'Cluster with name ' + cluster_name + ' does not exist' }}"
+
+- name: Check that all fyre nodes have a deployed status
+  ansible.builtin.uri:
+    url: "{{ hostvars['fyre-provisioner']['fyreocpplus_clusterstatusurl'] }}"
+    method: GET
+    user: "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: False
+    force_basic_auth: "{{ hostvars['fyre-provisioner']['fyre_force_basic_auth'] }}"
+  vars:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+  register: _result
+  changed_when: false
+  failed_when: _result.status | default(404) not in [-1,200,400]
+  delay: 20
+  retries: 600
+  until: _result.status != -1
+
+- ansible.builtin.fail: msg=stopping
+  name: Debugging
+
+- name: Set a default for when there is no cluster
+  ansible.builtin.set_fact:
+    no_cluster:
+      name: "{{ cluster_name }}"
+      status: 'absent'
+
+- name: Delete Fyre stack
+  ansible.builtin.uri:
+    url: "{{ fyreocpplus_clusterstatusurl }}"
+    method: "DELETE"
+    user: "{{ lookup('unvault', fyre_user) | trim }}"
+    password: "{{ lookup('unvault', fyre_apikey) | trim }}"
+    validate_certs: false
+    force_basic_auth: true
+    return_content: true
+    status_code: [200, 400]
+  register: _fyre_result
+  failed_when: _fyre_result.status | default(404) not in [-1,200,400]
+
+- ansible.builtin.debug: var=_fyre_result
+  name: Debugging
+
+- ansible.builtin.fail: msg=stopping
+  name: Debugging
+
+#  delay: 15
+#  retries: 20
+#  until: >
+#    (_fyre_result.status != -1) and
+#    ((_fyre_result.content | from_json)['clusters'] | default([no_cluster]) | selectattr('name','==',cluster_name) | map(attribute='status') | first) not in ['pending delete', 'deleting']
+
+- name: Set _fyre_result_json fact
+  ansible.builtin.set_fact:
+    _fyre_result_json: "{{ _fyre_result.content | from_json }}"
+
+- when: _fyre_result_json['status'] != 'error' and wait_for_completion | default(true) | bool
+  name: Wait for completion if there wasn't an error
+  block:
+
+    - name: Set fact for request_id
+      ansible.builtin.set_fact:
+        request_id: "{{ _fyre_result_json['request_id'] }}"
+
+    - name: Wait until cluster is finished building
+      ansible.builtin.uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests&request_id={{ request_id }}"
+        method: GET
+        user: "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
+        validate_certs: false
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: request_status_response
+      delay: 20
+      retries: 600
+      until: (request_status_response.status == 200) and (request_status_response.content is defined) and ((request_status_response.content | from_json)['request'] | length > 0) and not ((request_status_response.content | from_json)['request'][0].status in ['pending delete', 'deleting'])
+
+    - name: Remove previous cluster dir
+      ansible.builtin.file:
+        path: "{{ cluster_dir }}"
+        state: absent

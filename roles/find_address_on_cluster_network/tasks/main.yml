@@ -1,0 +1,19 @@
+---
+
+- name: Assert that network_cidr is defined
+  ansible.builtin.assert:
+    that: hostvars['cluster-facts']['network_cidr'] | default('') | length > 0
+    fail_msg: "The network_cidr must be defined to find the host interface on that network."
+
+- name: Find the address on the same network as the cluster_host
+  ansible.builtin.set_fact:
+    address_on_cluster_network: "{{ ipv4_address }}"
+  loop: "{{ hostvars[inventory_hostname]['ansible_all_ipv4_addresses'] }}"
+  loop_control:
+    loop_var: ipv4_address
+  when: hostvars['cluster-facts']['network_cidr'] | ansible.utils.network_in_network(ipv4_address | ansible.utils.ipsubnet)
+
+- name: Assert we found an address
+  ansible.builtin.assert:
+    that: hostvars[inventory_hostname]['address_on_cluster_network'] is defined
+    fail_msg: "The local host does not appear to have an address on the cluster network {{ hostvars['cluster-facts']['network_cidr'] }}"

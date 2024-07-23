@@ -1,0 +1,8 @@
+---
+
+- name: Remove assisted-installer pod
+  hosts: assisted_install_host
+  gather_facts: false
+  tags: remove_installer
+  roles:
+  - role: gmarcy.ansible.assisted_remove_installer

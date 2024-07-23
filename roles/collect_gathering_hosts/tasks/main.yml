@@ -1,0 +1,9 @@
+---
+
+- name: Set gathering_hosts fact
+  ansible.builtin.set_fact:
+    gathering_hosts: "{{ gathering_hosts | default([]) | union([gathering_host]) }}"
+  loop: "{{ groups['inventory_hosts'] | default([]) }}"
+  loop_control:
+    loop_var: gathering_host
+  when: hostvars[gathering_host]['gathering_roles'] is defined

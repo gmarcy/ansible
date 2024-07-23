@@ -1,0 +1,9 @@
+---
+
+- name: Set boot next to ipxe
+  ansible.builtin.command: |
+    efibootmgr --bootnext {{ efibootmgr.ipxe_bootdev }}
+  become: true
+  become_user: root
+  register: _result
+  changed_when: false

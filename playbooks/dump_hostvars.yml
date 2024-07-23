@@ -1,0 +1,12 @@
+---
+
+- name: Diagnostics
+  hosts: "{{ 'localhost' if hostvars is not defined else 'all' }}"
+  gather_facts: false
+  tasks:
+  - name: Lookup command-line arguments
+    ansible.builtin.set_fact:
+      cli_args: "{{ lookup('gmarcy.ansible.cli_args') }}"
+  - name: Print localhost hostvars
+    ansible.builtin.debug:
+      var: hostvars['localhost']

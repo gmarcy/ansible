@@ -18,4 +18,4 @@
   delegate_to: "{{ item[0] }}"
   delegate_facts: true
   loop: "{{ hosts_specs_map_unrolled }}"
-  when: item[1] != 'group_names' and hostvars['playbook-facts'][item[1]] is not defined
+  when: item[1] != 'group_names' and hostvars[item[0]][item[1]] is not defined

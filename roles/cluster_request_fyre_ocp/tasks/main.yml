@@ -1,0 +1,141 @@
+---
+
+- name: Check if the name is in use
+  ansible.builtin.uri:
+    url: "{{ ocpplus_check_hostname }}"
+    method: "GET"
+    user: "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+  vars:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+  register: _result
+  changed_when: false
+  failed_when: _result.status | default(-1) not in [-1,200]
+  delay: 20
+  retries: 600
+  until: _result.status != -1
+
+- name: Assert that the name is in use or free
+  ansible.builtin.assert:
+    that: _result.json.status == 'success' or _result.json.owning_user is defined
+    msg:
+    - "{{ _result.json.details }}"
+
+- name: Set _cluster_exists fact
+  ansible.builtin.set_fact:
+    _cluster_exists: "{{ _result.json.status != 'success' }}"
+
+- when: not _cluster_exists
+  name: Request the cluster
+  ansible.builtin.include_tasks: request_cluster.yml
+
+- name: Check cluster status for error
+  ansible.builtin.uri:
+    url: "{{ fyreocpplus_clusterstatusurl }}"
+    method: GET
+    user: "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+  vars:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+  register: _result_cluster_status
+  changed_when: false
+  delay: 20
+  retries: 600
+  until: _result_cluster_status.status != -1
+
+- name: Check for error status
+  ansible.builtin.fail:
+   msg:
+   - "{{ _result_cluster_status.json.status }}"
+   - "{{ _result_cluster_status.json.details }}"
+  when:
+  - _result_cluster_status.json.status is defined
+  - (_result_cluster_status.json.status) == 'error'
+
+- name: Check that all fyre nodes have a deployed status
+  ansible.builtin.uri:
+    url: "{{ fyreocpplus_clusterstatusurl }}"
+    method: GET
+    user: "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+  vars:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+  register: _result_cluster_status
+  changed_when: false
+  until: (_result_cluster_status.status == 200) and _result_cluster_status.json is defined and (_result_cluster_status.json.clusters[0].deployment_status == "deployed" or _result_cluster_status.json.clusters[0].deployment_status == "failed")
+  retries: 600
+  delay: 20
+
+- name: Check for deployment status failed
+  ansible.builtin.fail:
+    msg: "Cluster failed to deploy"
+  when: _result_cluster_status.json.clusters[0].deployment_status == "failed"
+
+- name: Check for error status after loop check
+  ansible.builtin.fail:
+   msg:
+   - "{{ _result_cluster_status.json.status }}"
+   - "{{ _result_cluster_status.json.details }}"
+  when:
+  - _result_cluster_status.json.status is defined
+  - (_result_cluster_status.json.status) == 'error'
+
+- name: Derive Info from Fyre Api
+  ansible.builtin.set_fact:
+    fyre_inf_public_ip: "{{ _result_cluster_status.json.clusters[0].vms | selectattr('ip_address','defined') | selectattr('ip_address', 'match', '^9..*$' ) | map(attribute='ip_address') | list | first }}"
+    fyre_inf_hostname: "{{ _result_cluster_status.json.clusters[0].vms | selectattr('ip_address','defined') | selectattr('ip_address', 'match', '^9..*$' ) | map(attribute='hostname') | list | first }}"
+
+- name: Remove new host from localhost known_hosts ip
+  ansible.builtin.command: "ssh-keygen -R {{ fyre_inf_public_ip }}"
+  changed_when: false
+  # changed_when: false Technically not true but change is not particularly meaningful
+  failed_when: false
+
+- name: Remove new host from localhost known_hosts fqdn
+  ansible.builtin.command: "ssh-keygen -R {{ fyre_inf_hostname }}"
+  changed_when: false
+  # changed_when: false Technically not true but change is not particularly meaningful
+  failed_when: false
+
+- name: Update existing host with OCP Facts
+  ansible.builtin.set_fact:
+    cluster_api_url: "{{ 'https://' + fyre_inf_hostname + ':6443' }}"
+    cluster_publicip: "{{ fyre_inf_public_ip }}"
+    console_password: "{{ _result_cluster_status.json.clusters[0].kubeadmin_password }}"
+    console_url: "{{ _result_cluster_status.json.clusters[0].access_url }}"
+    console_username: "{{ _result_cluster_status.json.clusters[0].ocp_username }}"
+    openshift_version: "{{ _result_cluster_status.json.clusters[0].ocp_version }}"
+  no_log: "{{ noLog }}"
+  changed_when: false
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- name: Create node groups for fyre_inf_hostname
+  ansible.builtin.add_host:
+    name: "{{ fyre_inf_hostname }}"
+    groups:
+    - all_nodes
+    - infra_node
+    ansible_python_interpreter: /usr/bin/python3.12
+    ansible_connection: ssh
+    ansible_host: "{{ fyre_inf_public_ip }}"
+    ansible_ssh_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
+    cluster_role: "infra"
+    fqdn: "{{ fyre_inf_hostname }}"
+    node_provisioning_role: ""
+    publicip: "{{ fyre_inf_public_ip }}"
+  changed_when: false
+
+- name: Clear temporary facts
+  ansible.builtin.set_fact:
+    _result_cluster_status: {}
+    _result: {}

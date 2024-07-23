@@ -1,0 +1,11 @@
+---
+
+- name: Reboot the machine
+  ansible.builtin.reboot:
+  become: true
+  become_user: root
+  register: _result
+
+- name: Clear roles_completed
+  ansible.builtin.set_fact:
+    roles_completed: []

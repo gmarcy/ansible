@@ -1,30 +1,16 @@
 ---
 
-- name: Update progress and stop the deployment if requested
-  block:
+- name: "{{ 'Add ' + task_to_check + ' to tasks_completed' }}"
+  ansible.builtin.set_fact:
+    tasks_completed: "{{ _tasks_completed | union([task_to_check]) }}"
+  delegate_to: 'playbook-facts'
+  delegate_facts: true
+  vars:
+    _tasks_completed: "{{ hostvars['playbook-facts'].tasks_completed | default([]) }}"
+  tags: omit_from_grapher
 
-    - name: Add to tasks_completed {{ task_to_check }}
-      ansible.builtin.set_fact:
-        tasks_completed: "{{ tasks_completed | union([task_to_check]) }}"
-      delegate_to: 'playbook-facts'
-      delegate_facts: true
-      vars:
-        tasks_completed: "{{ hostvars['playbook-facts'].tasks_completed | default([]) }}"
-
-    - name: Stop the deployment if required
-      block:
-
-        - name: When requested, stop after task {{ task_to_check }}
-          ansible.builtin.set_fact:
-            playbook_terminated: true
-          delegate_to: 'playbook-facts'
-          delegate_facts: true
-
-        - name: End play
-          ansible.builtin.meta: end_play
-
-      vars:
-        tasks_completed: "{{ hostvars['playbook-facts'].tasks_completed }}"
-      when: stop_after_task is defined and stop_after_task in tasks_completed
-
+- name: "{{ 'Stop after ' + task_to_check + ' has completed' }}"
+  ansible.builtin.assert:
+    that: (stop_after_task | default('')) not in hostvars['playbook-facts'].tasks_completed
+    msg: "{{ 'Stopping after ' + (stop_after_task | default('undefined task')) + ' has completed' }}"
   tags: omit_from_grapher

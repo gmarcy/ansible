@@ -1,0 +1,95 @@
+---
+
+- name: Check to see if we already have a cluster kubeconfig
+  ansible.builtin.stat:
+    path: "{{ kubeconfig_path }}"
+  register: _result
+
+- when: not _result.stat.exists
+  name: Create an empty cluster kubeconfig
+  ansible.builtin.set_fact:
+    _clusters_kubeconfig:
+      clusters: []
+      contexts: []
+      users: []
+
+- when: _result.stat.exists
+  name: Load contents of the cluster kubeconfig
+  ansible.builtin.set_fact:
+    _clusters_kubeconfig: "{{ lookup('file', kubeconfig_path, split_lines=false) | from_yaml }}"
+
+- name: Check to see if we already have a shared kubeconfig
+  ansible.builtin.stat:
+    path: "{{ clusters_shared_kubeconfig_path }}"
+  register: _result
+
+- when: not _result.stat.exists
+  name: Create an empty shared kubeconfig
+  ansible.builtin.set_fact:
+    _shared_kubeconfig:
+      clusters: []
+      contexts: []
+      users: []
+
+- when: _result.stat.exists
+  name: Load contents of the shared kubeconfig
+  ansible.builtin.set_fact:
+    _shared_kubeconfig: "{{ lookup('file', clusters_shared_kubeconfig_path, split_lines=false) | from_yaml }}"
+
+- name: Clear temp fact
+  ansible.builtin.set_fact:
+    _result: {}
+
+- name: Assert that we have required parameters
+  ansible.builtin.assert:
+    that:
+      - _shared_kubeconfig is defined
+      - _clusters_kubeconfig is defined
+
+- name: Merge the kubeconfig dictionaries
+  block:
+
+    - name: Collect lists from kubeconfig sources
+      ansible.builtin.set_fact:
+        _clusters: "{{ _clusters | union([_cluster]) }}"
+        _contexts: "{{ _contexts | union([_context]) }}"
+        _users: "{{ _users | union([_user]) }}"
+      loop: "{{ _cluster_names }}"
+      vars:
+        _cluster: "{{ _shared_kubeconfig.clusters | selectattr('name','==',item) | combine(_clusters_kubeconfig.clusters | selectattr('name','==',item)) }}"
+        _context: "{{ _shared_kubeconfig.contexts | selectattr('context.cluster','==',item) | combine(_clusters_kubeconfig.contexts | selectattr('context.cluster','==',item)) }}"
+        _user: "{{ _shared_kubeconfig.users | selectattr('name','==',_context.context.user) | combine(_clusters_kubeconfig.users | selectattr('name','==',_context.context.user)) }}"
+
+    - name: Bring together everything into a new shared kubeconfig
+      ansible.builtin.set_fact:
+        _new_shared_kubeconfig:
+          apiVersion: v1
+          clusters: "{{ _clusters }}"
+          contexts: "{{ _contexts }}"
+          current-context: "{{ _shared_kubeconfig['current-context'] | default(_clusters_kubeconfig['current-context']) }}"
+          kind: Config
+          preferences: "{{ _shared_kubeconfig.preferences | default({}) | combine(_clusters_kubeconfig.preferences) }}"
+          users: "{{ _users }}"
+
+  vars:
+    _cluster_names: "{{ _shared_kubeconfig.clusters | union(_clusters_kubeconfig.clusters) | map(attribute='name') | sort | unique }}"
+    _clusters: []
+    _contexts: []
+    _users: []
+
+- name: Persist shared kubeconfig
+  ansible.builtin.copy:
+    content: |
+      {{ _new_shared_kubeconfig | to_nice_yaml(sort_keys=false,indent=2) }}
+    dest: "{{ clusters_shared_kubeconfig_path }}"
+    mode: '0600'
+  changed_when: false
+
+- name: Clear temp facts
+  ansible.builtin.set_fact:
+    _clusters_kubeconfig: {}
+    _new_shared_kubeconfig: {}
+    _shared_kubeconfig: {}
+    _clusters: []
+    _contexts: []
+    _users: []

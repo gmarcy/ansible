@@ -4,13 +4,15 @@
   hosts: playbook-facts
   gather_facts: false
   pre_tasks:
-  - assert:
+  - name: Check that we have all facts needed for this play
+    ansible.builtin.assert:
       that:
       - hostvars['localhost-facts']['ssh_keypair_path'] is defined
       - hostvars['localhost-facts']['ssh_keypair_secret'] is defined
       - groups['inventory_hosts'] is defined
   tasks:
   - when: container_run | bool
+    name: Setup ssh keys for container
     block:
     - name: Create ~/.ssh folder if needed
       ansible.builtin.file:
@@ -26,12 +28,12 @@
       changed_when: false
     vars:
       ssh_keypair_path: "{{ hostvars['localhost-facts']['ssh_keypair_path'] }}"
-      ssh_keypair_secret: "{{ hostvars['localhost-facts']['ssh_keypair_path'] }}"
+      ssh_keypair_secret: "{{ hostvars['localhost-facts']['ssh_keypair_secret'] }}"
 
 - name: Run prepare_host_roles
   hosts: inventory_hosts
   gather_facts: false
   roles:
-  - role: loop_over_roles
+  - role: gmarcy.ansible.loop_over_roles
     role_loop: "{{ prepare_host_roles }}"
     when: prepare_host_roles is defined

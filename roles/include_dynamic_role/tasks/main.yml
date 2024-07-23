@@ -1,0 +1,6 @@
+---
+
+- name: "Dynamic include_role: {{ dynamic_role | default('skipped') }}"
+  ansible.builtin.include_role:
+    name: "{{ dynamic_role }}"
+  when: dynamic_role | default('') | length > 0

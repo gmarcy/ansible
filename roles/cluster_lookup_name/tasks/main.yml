@@ -1,0 +1,18 @@
+---
+
+- name: Get the cluster api url for the current kubeconfig context
+  ansible.builtin.set_fact:
+    cluster_api_url: "{{ shared_kubeconfig.clusters | selectattr('name', '==', _cluster_name) | map(attribute='cluster.server') | first }}"
+    kubeconfig_cluster_name: "{{ _cluster_name }}"
+  vars:
+    _cluster_name: "{{ shared_kubeconfig.contexts | selectattr('name', '==', shared_kubeconfig['current-context']) | map(attribute='context.cluster') | first }}"
+
+- name: Set cluster name and other cluster facts
+  ansible.builtin.set_fact:
+    cluster_name: "{{ _cluster_name }}"
+    cluster_dir: "{{ _cluster_dir }}"
+    cluster_bin_dir: "{{ _cluster_dir + '/bin' }}"
+    kubeconfig_path: "{{ _cluster_dir + '/kubeconfig' }}"
+  vars:
+    _cluster_name: "{{ cluster_api_url | regex_replace('https://api.([^.]*).*', '\\1') }}"
+    _cluster_dir: "{{ clusters_basedir + '/' + _cluster_name }}"

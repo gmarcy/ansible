@@ -1,0 +1,4 @@
+---
+
+- name: Stop executing tasks in the current play
+  ansible.builtin.meta: end_play

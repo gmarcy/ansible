@@ -1,0 +1,8 @@
+---
+
+- name: Print cluster storage configuration
+  ansible.builtin.debug:
+    msg:
+      - "{{ 'Cluster storage provided by ' + storage_provisioner + ' storage provisioner.' }}"
+      - "{{ 'Default storage class will be ' + default_storage_class }}"
+      - "{{ 'Block storage class will be ' + default_block_class }}"

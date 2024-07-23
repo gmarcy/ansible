@@ -1,0 +1,49 @@
+---
+
+- name: Set facts used in this role
+  ansible.builtin.set_fact:
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+
+- name: Assert that the inventory_hostname is 'techzone-provisioner'
+  ansible.builtin.assert:
+    that: inventory_hostname == 'techzone-provisioner'
+    msg: "{{ 'The inventory_hostname for this role was \"' + inventory_hostname + '\" and not \"techzone-provisioner\"' }}"
+
+- name: Retrieve existing reservation information
+  ansible.builtin.uri:
+    url: "{{ 'https://api.techzone.ibm.com/api/reservation/' + cluster_name }}"
+    method: GET
+    headers:
+      accept: 'application/json'
+      Authorization: "{{ 'Bearer ' + (lookup('unvault', hostvars['playbook-secrets']['itz_api_token']) | trim) }}"
+    validate_certs: false
+    status_code: [200, 403]
+  register: _result
+
+- when: not ((_result.status == 200) and (_result.json.id == cluster_name))
+  name: Remove stale cluster dir
+  ansible.builtin.file:
+    path: "{{ cluster_dir }}"
+    state: absent
+
+- name: Assert that the cluster exists
+  ansible.builtin.assert:
+    that: (_result.status == 200) and (_result.json.id == cluster_name)
+    msg: "{{ 'Cluster with name ' + cluster_name + ' does not exist' }}"
+
+- name: Delete TechZone cluster
+  ansible.builtin.uri:
+    url: "{{ 'https://api.techzone.ibm.com/api/reservation/' + cluster_name }}"
+    method: "DELETE"
+    headers:
+      accept: 'application/json'
+      Authorization: "{{ 'Bearer ' + (lookup('unvault', hostvars['playbook-secrets']['itz_api_token']) | trim) }}"
+    validate_certs: false
+  register: _result
+
+- ansible.builtin.debug: var=_result
+  name: Debugging
+
+- ansible.builtin.fail: msg=stopping
+  name: Debugging
