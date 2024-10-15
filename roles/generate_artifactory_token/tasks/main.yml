@@ -1,0 +1,64 @@
+---
+
+- name: Set need_artifactory_token fact
+  set_fact:
+    _need_artifactory_token: "{{ paths.artifactory_identity_token is defined and artifactory_token is not defined }}"
+
+- when: _need_artifactory_token and artifactory_generate_access_token is defined
+  name: Set vars used in this role
+  vars:
+    cluster_dir: "{{ hostvars['cluster-facts'].cluster_dir }}"
+    access_token_path: "{{ hostvars['cluster-facts'].cluster_dir + '/.artifactory_access_token' }}"
+  block:
+
+    - name: See if we already have an existing access token
+      stat:
+        path: "{{ access_token_path }}"
+      register: _result_stat
+
+    - name: Create an access token when we do not have one saved
+      vars:
+        access_token_exists: "{{ _result_stat.stat.exists }}"
+      when: not access_token_exists
+      block:
+
+        - name: Make sure the cluster dir exists
+          file:
+            path: "{{ cluster_dir }}"
+            state: directory
+            mode: '0755'
+          register: _result
+
+        - name: Create access_token for this cluster
+          uri:
+            url: "{{ artifactory_generate_access_token.url }}"
+            method: "POST"
+            headers:
+              Authorization: "{{ 'Bearer ' + artifactory_identity_token }}"
+            body_format: "form-urlencoded"
+            body: "{{ artifactory_generate_access_token.body }}"
+          vars:
+            secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+            artifactory_identity_token_secret: "{{ secrets.artifactory_identity_token }}"
+            artifactory_identity_token: "{{ lookup(artifactory_identity_token_secret.module, artifactory_identity_token_secret.param) | trim }}"
+          register: _result
+          until: _result.json is defined
+
+        - name: Copy reference token to cluster_dir
+          copy:
+            content: |
+              {{ artifactory_token }}
+            dest: "{{ access_token_path }}"
+            mode: '0600'
+          vars:
+            artifactory_token: "{{ _result.json.reference_token }}"
+
+    - name: Set fact with the path to the artifactory access token
+      set_fact:
+        artifactory_token: "{{ access_token_path }}"
+
+- name: Clear register facts
+  set_fact:
+    _need_artifactory_token: false
+    _result: {}
+    _result_stat: {}

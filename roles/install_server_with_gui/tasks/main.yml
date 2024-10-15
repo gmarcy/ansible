@@ -1,0 +1,16 @@
+---
+
+- name: Fetch list of installed package groups
+  ansible.builtin.command: dnf group list --installed
+  register: _result
+  changed_when: false
+
+- when: _result.stdout_lines | select('search', 'Server with GUI') | length == 0
+  name: Install "Server with GUI" if absent
+  ansible.builtin.include_tasks: install_server_with_gui.yml
+
+- name: Install tigervnc-server package
+  ansible.builtin.package:
+    name: tigervnc-server
+    state: present
+  register: _result
