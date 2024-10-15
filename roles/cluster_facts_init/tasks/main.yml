@@ -2,7 +2,7 @@
 
 - name: We need either a cluster name or a provisioner
   ansible.builtin.assert:
-    that: cluster_name is defined or cluster_provisioner is defined
+    that: options.cluster_name is defined or options.cluster_provisioner is defined
 
 - name: Set facts based on local_home
   ansible.builtin.set_fact:
@@ -11,13 +11,9 @@
   vars:
     local_home: "{{ hostvars['localhost-facts'].local_home }}"
 
-- name: Set facts based on cluster_name
-  ansible.builtin.set_fact:
-    cluster_dir: "{{ local_home + '/.kube/clusters/' + cluster_name }}"
-    cluster_bin_dir: "{{ local_home + '/.kube/clusters/' + cluster_name + '/bin' }}"
-  vars:
-    local_home: "{{ hostvars['localhost-facts'].local_home }}"
-  when: cluster_name is defined
+- when: options.cluster_name is defined
+  name: Set facts based on cluster name
+  ansible.builtin.include_tasks: set_cluster_name_facts.yml
 
 - name: Check to see if we already have a shared kubeconfig
   ansible.builtin.stat:

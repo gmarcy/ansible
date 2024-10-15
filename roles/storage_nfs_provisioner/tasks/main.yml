@@ -107,7 +107,7 @@
         kind: SecurityContextConstraints
         name: nfs-provisioner
       register: _result
-      when: kubernetes_distro == 'openshift'
+      when: options.kubernetes_distro == 'openshift'
 
     - name: Wait for SecurityContextConstraints to be created
       kubernetes.core.k8s_info:
@@ -120,7 +120,7 @@
       delay: 10
       retries: 24
       until: (_result.resources | length > 0) and (_result.resources[0].runAsUser.type == 'RunAsAny')
-      when: kubernetes_distro == 'openshift'
+      when: options.kubernetes_distro == 'openshift'
 
     - name: Apply the pod security policy
       kubernetes.core.k8s:
@@ -150,7 +150,7 @@
         kind: PodSecurityPolicy
         name: nfs-provisioner
       register: _result
-      when: kubernetes_distro != 'openshift'
+      when: options.kubernetes_distro != 'openshift'
 
     - name: Wait for PodSecurityPolicy to be created
       kubernetes.core.k8s_info:
@@ -163,7 +163,7 @@
       delay: 10
       retries: 24
       until: (_result.resources | length > 0) and (_result.resources[0].spec.runAsUser.rule == 'RunAsAny')
-      when: kubernetes_distro != 'openshift'
+      when: options.kubernetes_distro != 'openshift'
 
     - name: Create the cluster role
       kubernetes.core.k8s:

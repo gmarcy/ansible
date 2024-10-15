@@ -8,8 +8,9 @@ provisioning_role: 'cluster_request_assisted'
 deprovisioning_role: 'cluster_cleanup_assisted'
 cluster_facts_role: 'cluster_gather_facts_assisted'
 
-assisted_install_host: "{{ inv_assisted_install_host | default('localhost') }}"
-assisted_install_host_url: "http://{{ assisted_install_host }}:8080"
-assisted_install_rest_url: "http://{{ assisted_install_host }}:8080/api/assisted-install/v2"
+assisted_install_host_url: "{{ 'http://' + assisted_install_host + ':8080' }}"
+assisted_install_rest_url: "{{ 'http://' + assisted_install_host + ':8080/api/assisted-install/v2' }}"
 
-services_dir: "{{ lookup('env','HOME') }}/.assisted/services"
+vars_host:
+  assisted_install_host: 'localhost'
+  services_dir: "{{ local_home + '/.assisted/services' }}"

@@ -23,7 +23,7 @@
 - name: Provide informative message if ssh connect fails
   ansible.builtin.assert:
     that: setup_host_completed or _result.stdout is in ['connected']
-    msg: "ansible setup requires ssh remote access to {{ ssh_destination }}"
+    msg: "ansible setup requires ssh remote access to {{ _ssh_destination }}"
 
 - when: not setup_host_completed
   name: Gather host status

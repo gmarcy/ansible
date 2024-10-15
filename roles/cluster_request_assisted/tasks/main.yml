@@ -2,9 +2,9 @@
 
 - name: Register our cluster with the assisted-install service
   ansible.builtin.set_fact:
-    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
-    openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
-    cluster_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
+    cluster_name: "{{ hostvars['cluster-facts'].options.cluster_name }}"
+    openshift_version: "{{ hostvars['cluster-facts'].openshift_version }}"
+    cluster_domain: "{{ hostvars['cluster-facts'].options.cluster_domain }}"
     http_proxy: "{{ hostvars['cluster-facts']['http_proxy'] }}"
     network_cidr: "{{ hostvars['cluster-facts']['network_cidr'] }}"
     single_node: "{{ hostvars['cluster-facts']['single_node'] }}"
@@ -390,7 +390,7 @@
   ansible.builtin.include_role:
     name: assisted_gather_hosts_facts
   vars:
-    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    cluster_name: "{{ hostvars['cluster-facts'].options.cluster_name }}"
 
 - name: Check to see if we should stop now
   ansible.builtin.include_role:

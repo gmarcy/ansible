@@ -11,7 +11,7 @@
 - name: Provide informative message if sudo on ssh connect fails
   ansible.builtin.assert:
     that: _result.stdout == 'sudoer'
-    msg: "ansible setup requires being able to run sudo for {{ ssh_destination }}"
+    msg: "ansible setup requires being able to run sudo for {{ _ssh_destination }}"
 
 - name: Set ansible_python_interpreter
   ansible.builtin.set_fact:

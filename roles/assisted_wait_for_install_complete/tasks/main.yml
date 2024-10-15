@@ -63,8 +63,8 @@
         cmd: "./show_install_progress.sh"
         chdir: "{{ cluster_dir }}"
       environment:
-      - ASSISTED_INSTALL_REST_URL: "{{ assisted_install_rest_url }}"
-      - CLUSTER_ID: "{{ cluster_id }}"
+        ASSISTED_INSTALL_REST_URL: "{{ assisted_install_rest_url }}"
+        CLUSTER_ID: "{{ cluster_id }}"
       register: _result
       delay: 10
       retries: 100

@@ -44,7 +44,26 @@
   gather_facts: false
   tags: playbook_facts
   roles:
+  - role: load_host_vars_options
   - role: gmarcy.ansible.gather_localhost_facts
+
+- name: Load playbook secrets we will use during this playbook
+  hosts: playbook-secrets
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: load_host_vars_options
+  - role: gmarcy.ansible.load_playbook_secrets
+
+- name: Load options from host_vars, inventory, command line and environment
+  hosts: all
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: load_host_vars_options
+    when: not (options_loaded | default(false)) and (vars_host is defined or vars_inventory is defined)
 
 - name: Set playbook facts derived from cmdline and localhost facts
   hosts: playbook-facts
@@ -53,14 +72,6 @@
   tags: playbook_facts
   roles:
   - role: gmarcy.ansible.set_remote_user
-
-- name: Load playbook secrets we will use during this playbook
-  hosts: playbook-secrets
-  become: false
-  gather_facts: false
-  tags: playbook_facts
-  roles:
-  - role: gmarcy.ansible.load_playbook_secrets
 
 - name: Collect all inventory hosts with gathering roles
   hosts: playbook-facts
@@ -74,22 +85,11 @@
   hosts: "{{ hostvars['playbook-facts'].gathering_hosts | default('playbook-facts') }}"
   become: false
   gather_facts: false
+  tags: playbook_facts
   roles:
   - role: gmarcy.ansible.loop_over_roles
     role_loop: "{{ gathering_roles }}"
     when: gathering_roles is defined
-
-- name: Set cluster-facts dependent upon localhost-facts
-  hosts: "{{ 'cluster-facts' if hostvars['cluster-facts'] is defined else 'playbook-facts' }}"
-  become: false
-  gather_facts: false
-  tags: playbook_facts
-  roles:
-  - role: gmarcy.ansible.end_current_play
-    when: hostvars['cluster-facts'] is not defined
-  - role: gmarcy.ansible.cluster_facts_init
-  - role: gmarcy.ansible.cluster_load_facts
-    when: cluster_dir is defined
 
 - name: Check if requested to stop here
   hosts: playbook-facts

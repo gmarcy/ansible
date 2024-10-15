@@ -2,7 +2,7 @@
 
 - name: Provide informative message if python not present on remote host
   ansible.builtin.debug:
-    msg: "ansible setup requires that {{ ansible_python_interpreter }} be installed for {{ ssh_destination }}, will attempt to install it remotely."
+    msg: "ansible setup requires that {{ ansible_python_interpreter }} be installed for {{ _ssh_destination }}, will attempt to install it remotely."
 
 - name: Fetch contents of /etc/os-release
   ansible.builtin.command: |
@@ -55,4 +55,4 @@
 - name: Provide informative message if python not present on remote host
   ansible.builtin.assert:
     that: _result.stdout == ansible_python_interpreter
-    msg: "ansible setup requires that {{ ansible_python_interpreter }} be installed for {{ ssh_destination }}"
+    msg: "ansible setup requires that {{ ansible_python_interpreter }} be installed for {{ _ssh_destination }}"

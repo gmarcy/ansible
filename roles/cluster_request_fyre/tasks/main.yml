@@ -1,17 +1,30 @@
 ---
 
-- name: Assert that we have a cluster_name fact
-  ansible.builtin.assert:
-    that: cluster_name is defined and cluster_name | length > 0
-    msg: "Provisioning a fyre cluster requires a cluster_name fact"
+- name: Get the cluster status
+  ansible.builtin.include_role:
+    name: gmarcy.ansible.cluster_gather_facts_fyre
+    tasks_from: gather_cluster_status.yml
 
-- name: Request an OpenShift cluster from Fyre
-  when: hostvars['cluster-facts']['kubernetes_distro'] == 'openshift'
-  ansible.builtin.import_role:
-    name: cluster_request_fyre_ocp
-  vars:
-    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
-    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
-    ocpVersion: "{{ hostvars['cluster-facts']['openshift_version'] }}"
-    ocpPlatform: "{{ fyre_platform }}"
-    quickburn_ttl: "{{ fyre_quickburn_ttl }}"
+- when: not _cluster_exists
+  name: Create the cluster
+  block:
+
+    - name: Set distro_include_tasks fact
+      ansible.builtin.set_fact:
+        _distro_include_tasks: "{{ distro_tasks[kubernetes_distro].provision | default('') }}"
+
+    - name: Assert that we have a tasks file to include
+      ansible.builtin.assert:
+        that: _distro_include_tasks | length > 0
+        msg: "{{ 'Unable to find tasks to include for distro ' + kubernetes_distro }}"
+
+    - name: Include the tasks to create the configuration for the Fyre build operation
+      ansible.builtin.include_tasks: "{{ _distro_include_tasks }}"
+
+    - name: Build the cluster and wait for completion
+      ansible.builtin.include_tasks: build_cluster_and_wait.yml
+
+- name: Get the cluster details
+  ansible.builtin.include_role:
+    name: gmarcy.ansible.cluster_gather_facts_fyre
+    tasks_from: gather_cluster_details.yml

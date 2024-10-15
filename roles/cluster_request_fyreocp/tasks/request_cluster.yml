@@ -2,7 +2,7 @@
 
 - name: Print message that cluster was not found
   ansible.builtin.debug:
-    msg: "{{ 'Cluster was not found so creating new cluster called ' + cluster_name }}"
+    msg: "{{ 'Cluster was not found so creating new cluster called ' + options.cluster_name }}"
 
 - name: Set secret facts used in this role
   ansible.builtin.set_fact:
@@ -115,7 +115,7 @@
     body_format: "json"
     force_basic_auth: "{{ fyre_force_basic_auth }}"
     body:
-      name: "{{ cluster_name }}"
+      name: "{{ options.cluster_name }}"
       platform: "{{ ocpPlatform }}"
       fips: "{{ _fips | default(omit) }}"
       ssh_key: "{{ _secrets.ssh_public_key }}"

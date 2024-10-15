@@ -1,0 +1,130 @@
+---
+
+- fail: msg=stopping
+
+- name: Set of assertions for kubernetes clusters
+  assert:
+    that:
+    - options.fyre_bastion_count == bastion_count
+    - options.fyre_master_count in [1, 3, 5]
+    - options.fyre_worker_count | int >= 0
+  vars:
+    bastion_count: "{{ 0 if options.fyre_master_count == 1 else 1 }}"
+
+- when: options.fyre_group_id == 0
+  block:
+
+    - name: Lookup the quota available to us
+      uri:
+        url: "{{ fyreocp_quotaurl }}"
+        method: GET
+        user:  "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyre_force_basic_auth }}"
+      changed_when: false
+      register: _result_user_quota
+
+    - name: Set _fyre_group_id fact
+      set_fact:
+        _fyre_group_id: "{{ _result_user_quota.json.details | map(attribute='product_group_id') | first | int }}"
+
+- name: Wait until we have enough quota for the request
+  uri:
+    url: "{{ fyre_getquotaurl }}"
+    method: GET
+    user:  "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
+    validate_certs: false
+    force_basic_auth: "{{ options.fyre_force_basic_auth }}"
+  register: _result_user_quota
+  changed_when: false
+  vars:
+    bastion_mem: "{{ (options.fyre_bastion_count | int) * (options.fyre_bastion_mem | int) }}"
+    master_mem: "{{ (options.fyre_master_count | int) * (options.fyre_master_mem | int) }}"
+    worker_mem: "{{ (options.fyre_worker_count | int) * (options.fyre_worker_mem | int) }}"
+    cluster_mem_needed: "{{ bastion_mem + master_mem + worker_mem }}"
+    cluster_mem_available: "{{ (_result_user_quota.json.memory_quota_gb | int) - (_result_user_quota.json.memory_allocated_gb | int) }}"
+    fyre_group_id: "{{ _fyre_group_id | default(options.fyre_group_id) }}"
+    fyre_user_email: "{{ _secrets.fyre_user_email }}"
+  delay: 20
+  retries: 30
+  until: cluster_mem_available >= cluster_mem_needed
+
+- name: Ensure empty cluster dir
+  file:
+    path: "{{ cluster_dir }}"
+    mode: '0755'
+    state: "{{ item }}"
+  loop:
+  - absent
+  - directory
+
+- name: Write cluster specific fyre request body
+  copy:
+    content: |
+      fyre:
+        creds:
+          username: {{ _secrets.fyre_user }}
+          api_key: {{ _secrets.fyre_apikey }}
+          public_key: {{ hostvars['cluster-facts'].options.ssh_public_key }}
+      product_group_id: {{ _fyre_group_id | default(options.fyre_group_id) }}
+      cluster_prefix: {{ cluster_name }}
+      clusterconfig:
+        instance_type: 'virtual_server'
+        platform: {{ options.fyre_platform }}
+        user_comment: "{{ 'kubernetes cluster of ' + _secrets.fyre_user }}"
+      site: {{ options.fyre_site }}
+      {{ cluster_name }}:
+      {% if options.fyre_bastion_count == 1 %}
+        - name: '{{ options.fyre_bastion_name | string }}'
+          cpu: {{ options.fyre_bastion_cpu }}
+          memory: {{ options.fyre_bastion_mem }}
+          os: '{{ options.fyre_bastion_os }}'
+          publicvlan: 'y'
+          privatevlan: 'y'
+      {% if options.fyre_bastion_additional_disks | default([]) | length > 0 %}
+          additional_disks: {{ options.fyre_bastion_additional_disks }}
+      {% endif %}
+      {% endif %}
+      {% if options.fyre_master_count == 1 %}
+        - name: 'master'
+          cpu: {{ options.fyre_master_cpu }}
+          memory: {{ options.fyre_master_mem }}
+          os: '{{ options.fyre_node_os }}'
+          publicvlan: {{ 'n' if options.fyre_bastion_count == 1 else 'y' }}
+          privatevlan: 'y'
+      {% if options.fyre_master_additional_disks | default([]) | length > 0 %}
+          additional_disks: {{ options.fyre_bastion_additional_disks }}
+      {% endif %}
+      {% else %}
+      {% for index in range(0, options.fyre_master_count | int) %}
+        - name: "{{ 'master' + index | string }}"
+          cpu: {{ options.fyre_master_cpu }}
+          memory: {{ options.fyre_master_mem }}
+          os: '{{ options.fyre_node_os }}'
+          publicvlan: 'n'
+          privatevlan: 'y'
+      {% if options.fyre_master_additional_disks | default([]) | length > 0 %}
+          additional_disks: {{ options.fyre_bastion_additional_disks }}
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+      {% for index in range(0, options.fyre_worker_count | int) %}
+        - name: "{{ 'worker' + index | string }}"
+          cpu: {{ options.fyre_worker_cpu }}
+          memory: {{ options.fyre_worker_mem }}
+          os: '{{ options.fyre_node_os }}'
+          publicvlan: 'n'
+          privatevlan: 'y'
+      {% if options.fyre_worker_additional_disks | default([]) | length > 0 %}
+          additional_disks: {{ options.fyre_bastion_additional_disks }}
+      {% endif %}
+      {% endfor %}
+    dest: "{{ cluster_dir + '/fyre_cluster_req.yml' }}"
+    mode: '0600'
+
+- name: Clear register results and temporary facts
+  set_fact:
+    _fyre_group_id: 0
+    _result_user_quota: {}

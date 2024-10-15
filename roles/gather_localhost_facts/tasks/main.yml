@@ -26,16 +26,24 @@
     local_user: "{{ ansible_user_id }}"
 
 - when: localhost_spec is defined
-  name: Process localhost_spec
+  name: Set facts from localhost_spec
+  ansible.builtin.set_fact:
+    "{{ item }}": "{{ localhost_spec[item] }}"
+  loop: "{{ localhost_spec.keys() | default([]) }}"
+
+- when: options.ssh_keypair_name is defined
   block:
 
-  - name: Set facts from localhost_spec
-    ansible.builtin.set_fact:
-      "{{ item }}": "{{ localhost_spec[item] }}"
-    loop: "{{ localhost_spec.keys() | default([]) }}"
-
-- name: Set ssh_keypair_name derived facts
-  ansible.builtin.set_fact:
-    ssh_keypair_path: "{{ local_home + '/.ssh/' + ssh_keypairs[ssh_keypair_name].path_prefix + 'id_' + ssh_keytype }}"
-    ssh_keypair_secret: "{{ ssh_keypairs[ssh_keypair_name].secret }}"
-  when: ssh_keypair_name is defined
+    - name: Set ssh_keypair_name derived facts
+      ansible.builtin.set_fact:
+        ssh_keypair_path: "{{ ssh_keypair_path }}"
+        ssh_keypair_path_prefix: "{{ ssh_keypair.path_prefix }}"
+        ssh_keypair_secret: "{{ ssh_keypair.secret }}"
+        ssh_extra_args: "{{ '-F /dev/null -i ' + ssh_keypair_path }}"
+      vars:
+        hostvars_with_ssh_keypairs: "{{ hostvars.keys() | map('extract', hostvars) | selectattr('ssh_keypairs', 'defined') }}"
+        ssh_keypair_name: "{{ options.ssh_keypair_name }}"
+        ssh_keypairs: "{{ hostvars_with_ssh_keypairs | map(attribute='ssh_keypairs') | selectattr(ssh_keypair_name, 'defined') | map(attribute=ssh_keypair_name) }}"
+        ssh_keypair: "{{ ssh_keypairs | first | default({}) }}"
+        ssh_keypair_path: "{{ local_home + '/.ssh/' + ssh_keypair.path_prefix + 'id_' + options.ssh_keytype }}"
+      when: ssh_keypairs | length == 1

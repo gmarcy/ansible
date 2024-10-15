@@ -67,8 +67,10 @@ issues: https://github.com/gmarcy/ansible-automation/issues/tracker
 build_ignore:
 - .ansible-lint
 - .gitignore
+- .secrets
 - .tox
 - .yamllint
+- build-container-playbook.yml
 - ci
 - plugins/lookup/.gitignore
 - plugins/lookup/__pycache__

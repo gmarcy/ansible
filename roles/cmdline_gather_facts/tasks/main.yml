@@ -8,13 +8,6 @@
   ansible.builtin.set_fact:
     cli_remote_user: "{{ cli_args.remote_user if (cli_args.remote_user is string) else '' }}"
 
-- name: Check for empty remote user when running in a container
-  ansible.builtin.assert:
-    msg:
-      - "You must provide the user for the playbook when running in a container."
-      - "e.g. --user root"
-    that: not hostvars['playbook-facts'].container_run or cli_remote_user | length > 0
-
 - name: "Create map of all hosts declared using *host(s)_spec hostvars"
   ansible.builtin.set_fact:
     hosts_specs_map: "{{ hosts_specs_map | default({}) | combine(item_value) }}"

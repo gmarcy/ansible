@@ -2,9 +2,9 @@
 
 - name: Set facts used in this role
   ansible.builtin.set_fact:
-    cephfs_setup_dir: "{{ hostvars['cluster-facts']['cluster_dir'] + '/cephfs' }}"
+    cephfs_setup_dir: "{{ hostvars['cluster-facts'].cluster_dir + '/cephfs' }}"
     device_filter: "{{ cephfs_device_filter }}"
-    kubernetes_distro: "{{ hostvars['cluster-facts']['kubernetes_distro'] }}"
+    kubernetes_distro: "{{ hostvars['cluster-facts'].options.kubernetes_distro }}"
 
 - name: Check if the new storage class exists
   kubernetes.core.k8s_info:
