@@ -1,0 +1,11 @@
+---
+
+- name: Update installed packages
+  ansible.builtin.package:
+    name: "*"
+    state: latest
+  register: _result_update_packages
+
+- name: Clear temporary facts
+  ansible.builtin.set_fact:
+    _result_update_packages: {}

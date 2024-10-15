@@ -1,0 +1,21 @@
+---
+
+- name: Install package group 'Server with GUI'
+  ansible.builtin.command: dnf group install -y 'Server with GUI'
+  register: _result_group_install
+  no_log: true
+  changed_when: false
+
+- name: Print out stderr_lines
+  ansible.builtin.debug: var=stderr_lines
+  vars:
+    stderr_lines: "{{ _result_group_install.stderr_lines }}"
+
+- name: Print out stdout_lines
+  ansible.builtin.debug: var=stdout_lines
+  vars:
+    stdout_lines: "{{ _result_group_install.stdout_lines }}"
+
+- name: Clear temporary vars
+  ansible.builtin.set_fact:
+    _result_group_install: {}

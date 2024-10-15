@@ -1,0 +1,284 @@
+#*********************************Overview********************
+#This script create a single cell with Dmgr, node, and IHS ***
+#**************************************************************
+
+vars {
+
+  #************Installation Location**********************
+  WAS_ROOT = /opt/WAS90
+  #*************WebSphere Version**************************
+  #*************Latest will get the latest version*********
+  WAS_VERSION = latest(WAS90.IM)/latest
+  #*************Modify the HOSTNAME value to reflect your system you want to install to*****************
+  HOST_NAME = {{ hostvars[groups['all_nodes'][0]].fqdn }}
+  HOST_NAME_2 = {{ hostvars[groups['all_nodes'][1]].fqdn }}
+
+  #******DO NOT MODIFY BELOW **************************
+  CELL_NAME = Amphitrite_Cell
+  JAVA2_SECURITY=TRUE
+}
+
+host dmgrhost {
+  allows_nuke_all = True
+  check_umask = True
+  max_concurrency = 100
+  nonroot_id = ""
+  private_key = ""
+  supports_time_sync = False
+  tags = hosts
+  url = ssh:$(HOST_NAME)
+}
+
+host node2host {
+  allows_nuke_all = True
+  check_umask = True
+  max_concurrency = 100
+  nonroot_id = ""
+  private_key = ""
+  supports_time_sync = False
+  tags = hosts
+  url = ssh:$(HOST_NAME_2)
+}
+
+installation_manager_prv dmgrhostim {
+  K1 = False
+  accessRights = admin
+  driver_location = https://rtpgsa.ibm.com/gsa/rtpgsa/home/w/a/wasngi/web/public/NGI/IM/recommended/drivers/1914
+  host = dmgrhost
+  install_path = /opt/IM
+  local_repo_location = None
+  mirrors =
+    im_mirror rtpmsa {
+      fixes_repo = https://rtpmsa.raleigh.ibm.com/projects/m/moonstone/repositories/moonstone/repositories/AutoWAS/all/fixes
+      full_repo = https://rtpmsa.raleigh.ibm.com/projects/m/moonstone/repositories/moonstone/repositories/AutoWAS/all/full
+      ifixes_repo = https://rtpmsa.raleigh.ibm.com/projects/m/moonstone/repositories/moonstone/repositories/AutoWAS/all/ifixes
+      repo_url_protocol = ftp
+      root = /projects/m/moonstone/repositories
+      server = rtpmsa.raleigh.ibm.com
+      supports_passive_ftp = False
+    }
+  #offering_jdk = ""
+  override32 = False
+  shared_data_location = "/opt/IM-shared"
+  use_live_gsa = False
+  use_live_repo = False
+  version_path = ga
+}
+
+installation_manager_prv node2hostim {
+  K1 = False
+  accessRights = admin
+  driver_location = https://rtpgsa.ibm.com/gsa/rtpgsa/home/w/a/wasngi/web/public/NGI/IM/recommended/drivers/1914
+  host = node2host
+  install_path = /opt/IM
+  local_repo_location = None
+  mirrors =
+    im_mirror rtpmsa {
+      fixes_repo = https://rtpmsa.raleigh.ibm.com/projects/m/moonstone/repositories/moonstone/repositories/AutoWAS/all/fixes
+      full_repo = https://rtpmsa.raleigh.ibm.com/projects/m/moonstone/repositories/moonstone/repositories/AutoWAS/all/full
+      ifixes_repo = https://rtpmsa.raleigh.ibm.com/projects/m/moonstone/repositories/moonstone/repositories/AutoWAS/all/ifixes
+      repo_url_protocol = ftp
+      root = /projects/m/moonstone/repositories
+      server = rtpmsa.raleigh.ibm.com
+      supports_passive_ftp = False
+    }
+  #offering_jdk = ""
+  override32 = False
+  shared_data_location = "/opt/IM-shared"
+  use_live_gsa = False
+  use_live_repo = False
+  version_path = ga
+}
+
+external_ldap ldap {
+  enableJava2Security = $(JAVA2_SECURITY)
+  serverPassword = security
+  bindDN = ""
+  domain = None
+  serverType = IDS
+  userFilter = "(&(uid=%v)(objectclass=ePerson))"
+  bindPassword = ""
+  tags = ldap, admin_security
+  ldapHost = ctldap1.rtp.raleigh.ibm.com
+  backupHosts = ctldap2.rtp.raleigh.ibm.com
+  baseDN = "o=ibm,c=us"
+  groupIdMap = "*:cn"
+  groupMemberIdMap = "ibm-allGroups:member;ibm-allGroups:uniqueMember;groupOfNames:member;groupOfUniqueNames:uniqueMember"
+  port = 389
+  userIdMap = "*:uid"
+  groupFilter = "(&(cn=%v)(|(objectclass=groupOfNames)(objectclass=groupOfUniqueNames)))"
+  primaryAdminId = user1
+  serverId = user1
+}
+
+nd90 dmgrinstall {
+  aphid_name = ""
+  aphid_path = ""
+  aphid_server = ""
+  dynamicallyUpdateSSLConfig = False
+  edition = nd
+  features = "core.feature,thinclient,ejbdeploy,embeddablecontainer,samples"
+  fixpack_includes_ifixes = False
+  host = dmgrhost
+  im = dmgrhostim
+  install_flags = "-OPT disableOSPrereqChecking=true"
+  install_path = $(WAS_ROOT)
+  install_samples = False
+  #jdk_release = WASX.JDK8
+  nls = en
+  #offering_jdk = ""
+  override32 = False
+  patches = patches
+  profiles =
+    nd90_dmgr dmgr {
+      alias_name = None
+      args = ""
+      cell = $(CELL_NAME)
+      delete_post_migration = False
+      enable_pluggable_sdk = False
+      migration = None
+      node_name = None
+      profile_name = None
+      profile_path = None
+      starting_port = None
+      tags = was, 80cell, profiles, cell
+      template_path = None
+    },
+    nd90_managed node1_$(HOST_NAME) {
+      add_node_trace = False
+      args = ""
+      cell = $(CELL_NAME)
+      enable_pluggable_sdk = False
+      fed_starting_port = None
+      migration = None
+      node_group = ""
+      node_name = None
+      profile_name = None
+      profile_path = None
+      servers =
+        appserver node1_server1 {
+          args = ""
+          enableProvisioning = False
+          genUniquePorts = True
+          serverName = None
+          templateName = ""
+        }
+      starting_port = None
+      tags = 80cell, nodes, profiles, cell, managed, was
+      template_path = None
+    }
+  tags = wasinstalls, node1_install, 80cell, was, dmgr_install
+  unique_multicast_address = True
+  updi = UPDI70
+  version_path = $(WAS_VERSION)
+  wsadmin_conntype = RMI
+}
+
+nd90 node2install {
+  aphid_name = ""
+  aphid_path = ""
+  aphid_server = ""
+  dynamicallyUpdateSSLConfig = False
+  edition = nd
+  features = "core.feature,thinclient,ejbdeploy,embeddablecontainer,samples"
+  fixpack_includes_ifixes = False
+  host = node2host
+  im = node2hostim
+  install_flags = "-OPT disableOSPrereqChecking=true"
+  install_path = $(WAS_ROOT)
+  install_samples = False
+  #jdk_release = WASX.JDK8
+  nls = en
+  #offering_jdk = ""
+  override32 = False
+  patches = patches
+  profiles =
+    nd90_managed node2_$(HOST_NAME_2) {
+      add_node_trace = False
+      args = ""
+      cell = $(CELL_NAME)
+      enable_pluggable_sdk = False
+      fed_starting_port = None
+      migration = None
+      node_group = ""
+      node_name = None
+      profile_name = None
+      profile_path = None
+      servers =
+        appserver node2_server1 {
+          args = ""
+          enableProvisioning = False
+          genUniquePorts = True
+          serverName = None
+          templateName = ""
+        }
+      starting_port = None
+      tags = 80cell, nodes, profiles, cell, managed, was
+      template_path = None
+    }
+  tags = wasinstalls, node1_install, 80cell, was, dmgr_install
+  unique_multicast_address = True
+  updi = UPDI70
+  version_path = $(WAS_VERSION)
+  wsadmin_conntype = RMI
+}
+
+nd90_cell $(CELL_NAME) {
+  securityAuth = None
+}
+
+
+ihs90 dmgrihs {
+  admin_password = ihsadmpwd
+  admin_port = 8192
+  admin_user = ihsadmusr
+  aphid_name = ""
+  aphid_path = ""
+  aphid_server = ""
+  edition = ihs
+  extensions =
+    ihs90_plugin dmgrplugin {
+      aphid_name = ""
+      aphid_path = ""
+      aphid_server = ""
+      edition = plg
+      features = core.feature
+      fixpack_includes_ifixes = False
+      im = dmgrhostim
+      install_flags = ""
+      override32 = False
+      patches = patches
+      version_path = $(WAS_VERSION)
+      was_profile = node1_$(HOST_NAME)
+      webserver = webserver1
+    }
+  features = core.feature
+  fixpack_includes_ifixes = False
+  host = dmgrhost
+  http_port = 80
+  im = dmgrhostim
+  install_flags = ""
+  install_path = /opt/IHS90
+  override32 = False
+  patches = patches
+  tags = ihs
+  version_path = $(WAS_VERSION)
+}
+
+wct90 wctinstall {
+  host = dmgrhost
+  install_path = /opt/WCT90
+  tags = wct
+  version_path = $(WAS_VERSION)
+  im = dmgrhostim
+}
+
+#*********Cluster Definitions**************
+cluster $(CELL_NAME)_cluster {
+        servers = server $(CELL_NAME)_clustermember1_node1 { node = node1_$(HOST_NAME)}, server $(CELL_NAME)_clustermember2_node2 { node = node2_$(HOST_NAME_2)}
+
+}
+
+
+queries {
+}

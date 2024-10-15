@@ -1,0 +1,29 @@
+---
+
+- name: Change ansible_ssh_user
+  ansible.builtin.set_fact:
+    ansible_ssh_user: "{{ params.remote_user }}"
+
+- name: Confirm we can connect using new ssh user
+  ansible.builtin.ping:
+
+- name: Gather facts that will change with a different user
+  ansible.builtin.setup:
+    filter:
+    - 'ansible_env'
+    - 'ansible_user_uid'
+    gather_subset:
+    - '!all'
+    - 'network'
+
+- name: Clear redundant ansible_facts result
+  ansible.builtin.set_fact:
+    ansible_facts: {}
+
+- name: Set facts from setup to hostvars
+  ansible.builtin.set_fact:
+    user_home: "{{ ansible_env['HOME'] }}"
+    user_name: "{{ ansible_env['USER'] }}"
+    user_path: "{{ ansible_env['PATH'] }}"
+    user_uid: "{{ ansible_user_uid }}"
+    runtime_path: "{{ omit if (ansible_env['XDG_RUNTIME_DIR'] is not defined) else ansible_env['XDG_RUNTIME_DIR'] }}"
