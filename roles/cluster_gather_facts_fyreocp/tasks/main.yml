@@ -1,0 +1,207 @@
+---
+
+- name: Set secret facts used in this role
+  ansible.builtin.set_fact:
+    _secrets:
+      fyre_user: "{{ fyre_user }}"
+      fyre_apikey: "{{ fyre_apikey }}"
+  vars:
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    fyre_user_secret: "{{ secrets.fyre_user }}"
+    fyre_apikey_secret: "{{ secrets.fyre_apikey }}"
+    fyre_user: "{{ lookup(fyre_user_secret.module, fyre_user_secret.param) | trim }}"
+    fyre_apikey: "{{ lookup(fyre_apikey_secret.module, fyre_apikey_secret.param) | trim }}"
+  no_log: true
+
+- name: Check if the name is in use
+  ansible.builtin.uri:
+    url: "{{ hostvars['fyre-provisioner'].ocpplus_check_hostname }}"
+    method: "GET"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
+    validate_certs: false
+    force_basic_auth: "{{ hostvars['fyre-provisioner'].fyre_force_basic_auth }}"
+  register: _result
+  changed_when: false
+  failed_when: _result.status | default(404) not in [-1,200]
+  delay: 20
+  retries: 600
+  until: _result.status != -1
+
+- name: Assert that the cluster exists
+  ansible.builtin.assert:
+    that: _result.json.status != 'success'
+    msg: "{{ 'Cluster with name ' + options.cluster_name + ' does not exist' }}"
+
+- name: Check that all fyre nodes have a deployed status
+  ansible.builtin.uri:
+    url: "{{ hostvars['fyre-provisioner'].fyreocpplus_clusterstatusurl }}"
+    method: GET
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
+    validate_certs: False
+    force_basic_auth: "{{ hostvars['fyre-provisioner'].fyre_force_basic_auth }}"
+  register: _result
+  changed_when: false
+  failed_when: _result.status | default(404) not in [-1,200,400]
+  delay: 20
+  retries: 600
+  until: _result.status != -1
+
+- name: Set facts from response
+  block:
+
+    - name: Assert status is ok
+      ansible.builtin.assert:
+        that: status_ok
+        msg:
+        - "{{ status_json['status'] | default('error') }}"
+        - "{{ status_json['details'] | default('Unknown failure with cluster status') }}"
+
+    - name: Set fact for our cluster
+      ansible.builtin.set_fact:
+        _cluster_status: "{{ item }}"
+      loop: "{{ status_json.clusters }}"
+      when: item.cluster_name == options.cluster_name
+
+  vars:
+    status_ok: "{{ _result.status | default(404) is in [200] }}"
+    status_json: "{{ _result.json }}"
+
+- name: Assert that cluster has either deployed or failed
+  ansible.builtin.assert:
+    that:
+    - _cluster_status is defined
+    - _cluster_status['deployment_status'] is in ['deployed', 'failed']
+    msg: "{{ 'Cluster deployment_status is ' + _cluster_status['deployment_status'] }}"
+
+- name: Set facts for fyre inf node
+  ansible.builtin.set_fact:
+    _fyre_inf_publicip: "{{ _cluster_status.vms | map(attribute='ips') | flatten | selectattr('type','equalto','public') | map(attribute='address') | list | first }}"
+
+- name: Set facts for fyre inf node
+  ansible.builtin.set_fact:
+    _fyre_inf_hostname: "{{ _cluster_status.vms | selectattr('ip_address','defined') | selectattr('ip_address','equalto',_fyre_inf_publicip) | map(attribute='hostname') | list | first }}"
+
+- name: Set facts for fyre inf node
+  ansible.builtin.set_fact:
+    _cluster_api_host_port: "{{ _fyre_inf_hostname + ':6443' }}"
+
+# - name: Add host entry for the infra node
+#   ansible.builtin.add_host:
+#     name: "{{ item['hostname'] }}"
+#     groups:
+#     - all_nodes
+#     - infra_node
+#     ansible_host: "{{ _fyre_inf_publicip }}"
+#     ansible_ssh_user: root
+#     vm_info: "{{ item }}"
+#   loop: "{{ _cluster_status.vms | selectattr('hostname','equalto',_fyre_inf_hostname) }}"
+#   changed_when: false
+#   when: item['hostname'] == _fyre_inf_hostname
+
+# - name: Set cluster_status fact
+#   ansible.builtin.set_fact:
+#     cluster_status: "{{ _cluster_status | combine({'vms': ''}) }}"
+
+- name: Wait until we can resolve the hostname using DNS
+  ansible.builtin.set_fact:
+    cluster_publicip: "{{ lookup('community.general.dig', _fyre_inf_hostname, '@9.0.0.2') }}"
+  delay: 15
+  retries: 40
+  until: lookup('community.general.dig', _fyre_inf_hostname, '@9.0.0.2') == _fyre_inf_publicip
+
+- name: Update remaining Fyre OCP Facts
+  ansible.builtin.set_fact:
+    cluster_api_url: "{{ 'https://' + _cluster_api_host_port }}"
+    cluster_domain: "{{ _fyre_inf_hostname | regex_replace('api\\.' + options.cluster_name + '\\.([^:]*)', '\\1') }}"
+    console_url: "{{ _cluster_status.access_url }}"
+    console_username: "{{ _cluster_status.ocp_username }}"
+    console_password: "{{ _cluster_status.kubeadmin_password }}"
+    kubeconfig_path: "{{ cluster_dir + '/kubeconfig' }}"
+  no_log: "{{ noLog }}"
+  changed_when: false
+
+- name: Create cluster_dir folder
+  ansible.builtin.file:
+    path: "{{ cluster_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Download the Openshift cluster CLI and authenticate to the cluster
+  ansible.builtin.include_role:
+    name: download_cluster_cli
+  vars:
+    client_arch: "{{ hostvars['localhost-facts'].cpu_arch }}"
+    client_os: "{{ hostvars['localhost-facts'].os_family }}"
+
+- name: Authenticate to OpenShift
+  ansible.builtin.include_role:
+    name: gmarcy.ansible.openshift_authenticate
+  when: authenticate_as_kubeadmin | default(true)
+
+- name: Fetch a copy of the remote kubeconfig
+  ansible.builtin.slurp:
+    path: auth/kubeconfig
+  register: _kubeconfig_encoded
+  delegate_to: "{{ _fyre_inf_hostname }}"
+
+- name: Create new values for openshift api token
+  ansible.builtin.set_fact:
+    cluster_kubeconfig_name: "{{ kc_cluster_name }}"
+    _cluster_kubeconfig:
+      apiVersion: v1
+      clusters:
+      - cluster: "{{ (_kubeconfig_encoded.content | b64decode | from_yaml)['clusters'][0]['cluster'] }}"
+        name: "{{ kc_cluster_name }}"
+      contexts:
+      - context:
+          cluster: "{{ kc_cluster_name }}"
+          namespace: "{{ kc_context_ns }}"
+          user: "{{ kc_user_name + '/' + kc_cluster_name }}"
+        name: "{{ kc_context_ns + '/' + kc_cluster_name + '/' + kc_user_name }}"
+      current-context: "{{ kc_context_ns + '/' + kc_cluster_name + '/' + kc_user_name }}"
+      kind: Config
+      preferences: {}
+      users:
+      - name: "{{ kc_user_name + '/' + kc_cluster_name }}"
+        user:
+          token: "{{ api_key }}"
+  vars:
+    kc_cluster_name: "{{ _cluster_api_host_port | replace('.','-') }}"
+    kc_user_name: 'kube:admin'
+    kc_context_ns: 'default'
+  no_log: "{{ noLog }}"
+
+- name: Copy updated kubeconfig to kubeconfig_path
+  ansible.builtin.copy:
+    content: |
+      {{ _cluster_kubeconfig | to_nice_yaml(indent=2) }}
+    dest: "{{ kubeconfig_path }}"
+    mode: '0600'
+  changed_when: false
+  no_log: "{{ noLog }}"
+
+- name: Create a copy of our cluster facts
+  ansible.builtin.copy:
+    content: |
+      cluster_description: "{{ cluster_description }}"
+      cluster_fqdn: "{{ cluster_fqdn }}"
+      cluster_provisioner: "{{ options.cluster_provisioner }}"
+      console_password: "{{ console_password }}"
+      kubernetes_distro: "{{ kubernetes_distro }}"
+    dest: "{{ cluster_dir + '/cluster-facts.yaml' }}"
+    mode: '0600'
+  changed_when: false
+  no_log: "{{ noLog }}"
+
+- name: Clear temp facts
+  ansible.builtin.set_fact:
+    _cluster_api_host_port: ""
+    _cluster_kubeconfig: {}
+    _cluster_status: ""
+    _fyre_inf_publicip: ""
+    _fyre_inf_hostname: ""
+    _kubeconfig_encoded: {}
+    _result: {}
+    _secrets: {}
