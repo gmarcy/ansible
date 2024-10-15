@@ -4,8 +4,22 @@
   ansible.builtin.set_fact:
     cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
-    fyre_user: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-    fyre_apikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+
+- name: Set secret facts used in this role
+  ansible.builtin.set_fact:
+    _secrets:
+      fyre_user: "{{ fyre_user }}"
+      fyre_user_email: "{{ fyre_user_email }}"
+      fyre_apikey: "{{ fyre_apikey }}"
+  vars:
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    fyre_user_secret: "{{ secrets.fyre_user }}"
+    fyre_user_email_secret: "{{ secrets.fyre_user_email }}"
+    fyre_apikey_secret: "{{ secrets.fyre_apikey }}"
+    fyre_user: "{{ lookup(fyre_user_secret.module, fyre_user_secret.param) | trim }}"
+    fyre_user_email: "{{ lookup(fyre_user_email_secret.module, fyre_user_email_secret.param) | trim }}"
+    fyre_apikey: "{{ lookup(fyre_apikey_secret.module, fyre_apikey_secret.param) | trim }}"
+  no_log: true
 
 - name: Assert that the inventory_hostname is 'fyre-provisioner'
   ansible.builtin.assert:
@@ -16,13 +30,10 @@
   ansible.builtin.uri:
     url: "{{ hostvars['fyre-provisioner']['ocpplus_check_hostname'] }}"
     method: "GET"
-    user: "{{ lookup('unvault', fyreuser) | trim }}"
-    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     force_basic_auth: "{{ hostvars['fyre-provisioner']['fyre_force_basic_auth'] }}"
-  vars:
-    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
   register: _result
   changed_when: false
   failed_when: _result.status | default(404) not in [-1,200]
@@ -45,13 +56,10 @@
   ansible.builtin.uri:
     url: "{{ hostvars['fyre-provisioner']['fyreocpplus_clusterstatusurl'] }}"
     method: GET
-    user: "{{ lookup('unvault', fyreuser) | trim }}"
-    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
     validate_certs: False
     force_basic_auth: "{{ hostvars['fyre-provisioner']['fyre_force_basic_auth'] }}"
-  vars:
-    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
   register: _result
   changed_when: false
   failed_when: _result.status | default(404) not in [-1,200,400]
@@ -72,8 +80,8 @@
   ansible.builtin.uri:
     url: "{{ fyreocpplus_clusterstatusurl }}"
     method: "DELETE"
-    user: "{{ lookup('unvault', fyre_user) | trim }}"
-    password: "{{ lookup('unvault', fyre_apikey) | trim }}"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     force_basic_auth: true
     return_content: true
@@ -109,8 +117,8 @@
       ansible.builtin.uri:
         url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests&request_id={{ request_id }}"
         method: GET
-        user: "{{ lookup('unvault', fyre_user) | trim }}"
-        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
         validate_certs: false
         force_basic_auth: true
         return_content: true

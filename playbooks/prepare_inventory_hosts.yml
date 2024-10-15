@@ -22,13 +22,17 @@
       changed_when: false
     - name: Copy ssh key secret into ~/.ssh when running in a container
       ansible.builtin.copy:
-        content: "{{ lookup('unvault', hostvars['playbook-secrets'][ssh_keypair_secret]) }}"
+        content: |
+          {{ ssh_keypair_key }}
         dest: "{{ ssh_keypair_path }}"
         mode: '0600'
       changed_when: false
     vars:
       ssh_keypair_path: "{{ hostvars['localhost-facts']['ssh_keypair_path'] }}"
       ssh_keypair_secret: "{{ hostvars['localhost-facts']['ssh_keypair_secret'] }}"
+      secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+      ssh_keypair_key_secret: "{{ secrets[ssh_keypair_secret] }}"
+      ssh_keypair_key: "{{ lookup(ssh_keypair_key_secret.module, ssh_keypair_key_secret.param) | trim }}"
 
 - name: Run prepare_host_roles
   hosts: inventory_hosts

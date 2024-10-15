@@ -62,46 +62,6 @@
   roles:
   - role: gmarcy.ansible.load_playbook_secrets
 
-# - name: Copy secret for ssh_keypair_name to ssh_keypair_path when running in container
-#   hosts: localhost-facts
-#   become: false
-#   gather_facts: false
-#   tags: playbook_facts
-#   tasks:
-#   - when: hostvars['playbook-facts'].container_run | bool
-#     block:
-#     - name: Create ~/.ssh folder if needed
-#       ansible.builtin.file:
-#         path: "{{ ssh_keypair_path | dirname }}"
-#         state: directory
-#         mode: '0700'
-#       changed_when: false
-#     - name: Copy ssh key secret into ~/.ssh when running in a container
-#       ansible.builtin.copy:
-#         content: "{{ lookup('unvault', hostvars['playbook-secrets'][ssh_keypair_secret]) }}"
-#         dest: "{{ ssh_keypair_path }}"
-#         mode: '0600'
-#       changed_when: false
-
-# - name: Prepare inventory_hosts
-#   hosts: playbook-facts
-#   become: false
-#   gather_facts: false
-#   tags: playbook_facts
-#   tasks:
-#   - name: Prepare ssh keypairs when running in a container
-#     ansible.builtin.include_role:
-#       name: prepare_container_ssh
-#     when: container_run | bool
-#   - name: Set ansible_ssh_extra_args fact for each inventory host
-#     ansible.builtin.set_fact:
-#       ansible_ssh_extra_args: "-F /dev/null -i {{ hostvars['localhost-facts'].ssh_keypair_path }}"
-#     loop: "{{ inventory_hosts | default([]) }}"
-#     loop_control:
-#       loop_var: inventory_host
-#     delegate_to: "{{ inventory_host }}"
-#     delegate_facts: true
-
 - name: Collect all inventory hosts with gathering roles
   hosts: playbook-facts
   become: false

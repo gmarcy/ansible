@@ -10,7 +10,6 @@
   ansible.builtin.import_role:
     name: cluster_request_fyre_ocp
   vars:
-    ssh_public_key: "{{ hostvars['playbook-secrets']['ssh_public_key'] }}"
     cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
     ocpVersion: "{{ hostvars['cluster-facts']['openshift_version'] }}"
