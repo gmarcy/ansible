@@ -11,6 +11,7 @@
     _clusters_kubeconfig:
       clusters: []
       contexts: []
+      preferences: {}
       users: []
 
 - when: _result.stat.exists
@@ -29,6 +30,7 @@
     _shared_kubeconfig:
       clusters: []
       contexts: []
+      preferences: {}
       users: []
 
 - when: _result.stat.exists

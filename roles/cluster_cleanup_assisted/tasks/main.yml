@@ -2,7 +2,7 @@
 
 - name: Unregister our cluster with the assisted-install service
   ansible.builtin.set_fact:
-    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    cluster_name: "{{ hostvars['cluster-facts'].options.cluster_name }}"
 
 - name: Get a list of the cluster objects
   ansible.builtin.uri:

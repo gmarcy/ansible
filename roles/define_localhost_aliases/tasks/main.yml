@@ -4,6 +4,6 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     groups: 'ungrouped'
-  loop: "{{ localhost_aliases }}"
+  loop: "{{ localhost_aliases | difference(groups['ungrouped']) }}"
   changed_when: false
   when: hostvars[item] is not defined

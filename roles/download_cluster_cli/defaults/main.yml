@@ -1,6 +1,6 @@
 ---
 
-cluster_download_url: "{{ 'http://downloads-openshift-console.apps.' + cluster_name + '.' + cluster_domain }}"
+cluster_download_url: "{{ 'https://downloads-openshift-console.apps.' + cluster_fqdn }}"
 
 client_arch_map:
   aarch64: arm64

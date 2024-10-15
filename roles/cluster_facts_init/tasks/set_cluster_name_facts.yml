@@ -1,0 +1,18 @@
+---
+
+- name: Set facts based on cluster_name
+  ansible.builtin.set_fact:
+    cluster_dir: "{{ _cluster_dir }}"
+    cluster_bin_dir: "{{ _cluster_dir + '/bin' }}"
+  vars:
+    _cluster_dir: "{{ clusters_basedir + '/' + options.cluster_name }}"
+
+- name: Check to see if there is an existing cluster directory
+  ansible.builtin.stat:
+    path: "{{ cluster_dir }}"
+  register: _result
+
+- name: Assert that the cluster directory exists if we don't have a cluster provisioner
+  ansible.builtin.assert:
+    that: _result.stat.exists or options.cluster_provisioner is defined
+    msg: 'There is no cluster provisioner and the cluster directory does not exist'

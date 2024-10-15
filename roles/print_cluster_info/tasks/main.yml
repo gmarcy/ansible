@@ -8,6 +8,7 @@
       - ""
       - "export KUBECONFIG={{ kubeconfig_path }}"
   changed_when: true
+  when: kubeconfig_path is defined
 
 - name: Print information for cluster console
   ansible.builtin.debug:

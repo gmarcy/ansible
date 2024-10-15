@@ -7,13 +7,16 @@
 
 - name: Set our cluster facts
   ansible.builtin.set_fact:
-    cluster_name: "{{ item.name }}"
-    cluster_id: "{{ item.id }}"
-    cluster_state: "{{ item.status }}"
-    cluster_url: "{{ assisted_install_host_url }}{{ item.href }}"
-    cluster_events_url: "{{ assisted_install_rest_url }}/events?cluster_id={{ item.id }}"
-    cluster_api_url: "{{ 'https://api.' + item.name + '.' + item.base_dns_domain + ':6443' }}"
-    cluster_domain: "{{ item.base_dns_domain }}"
+    options: "{{ options | default({}) | combine(result_options) }}"
+  vars:
+    result_options:
+      cluster_name: "{{ item.name }}"
+      cluster_id: "{{ item.id }}"
+      cluster_state: "{{ item.status }}"
+      cluster_url: "{{ assisted_install_host_url }}{{ item.href }}"
+      cluster_events_url: "{{ assisted_install_rest_url }}/events?cluster_id={{ item.id }}"
+      cluster_api_url: "{{ 'https://api.' + item.name + '.' + item.base_dns_domain + ':6443' }}"
+      cluster_domain: "{{ item.base_dns_domain }}"
   loop: "{{ _result.json }}"
   when: item.name == hostvars['cluster-facts']['cluster_name']
 
@@ -42,7 +45,7 @@
   block:
 
     - name: Gather hosts facts
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: assisted_gather_hosts_facts
       vars:
         cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
@@ -80,7 +83,7 @@
       delegate_facts: true
 
     - name: Download the Openshift cluster CLI and authenticate to the cluster
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: gmarcy.ansible.download_cluster_cli
       vars:
         client_arch: "{{ hostvars['localhost-facts']['cpu_arch'] }}"
@@ -89,7 +92,7 @@
         cluster_bin_dir: "{{ hostvars['cluster-facts']['cluster_bin_dir'] }}"
 
     - name: Authenticate to OpenShift
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: gmarcy.ansible.openshift_authenticate
       vars:
         cluster_api_url: "{{ hostvars['cluster-facts']['cluster_api_url'] }}"

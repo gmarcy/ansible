@@ -1,0 +1,39 @@
+---
+
+- name: "{{ 'Gather cluster facts from ' + hostvars['cluster-facts'].options.cluster_provisioner | default('undefined cluster provisioner') }}"
+  hosts: "{{ hostvars['cluster-facts'].options.cluster_provisioner | default('cluster-facts') }}"
+  become: false
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.end_current_play
+    when: inventory_hostname == 'cluster-facts' or cluster_facts_role is not defined
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ cluster_facts_role }}"
+
+- name: Upsert cluster kubeconfig into shared kubeconfig
+  hosts: cluster-facts
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.update_shared_kubeconfig
+    when: kubeconfig_path is defined
+
+- name: Generate cluster secrets using cluster_secrets_role when requested
+  hosts: playbook-secrets
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.include_dynamic_role
+    dynamic_role: "{{ hostvars['cluster-facts'].cluster_secrets_role }}"
+    when: hostvars['cluster-facts'].cluster_secrets_role is defined
+
+- name: Gather host facts from all nodes
+  hosts: "{{ groups['all_nodes'] | default('cluster-facts') }}"
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gmarcy.ansible.end_current_play
+    when: inventory_hostname == 'cluster-facts'
+  - role: gmarcy.ansible.setup_ansible_host
+  - role: gmarcy.ansible.gather_host_facts

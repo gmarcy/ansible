@@ -1,9 +1,9 @@
 ---
 
 - name: Print cluster information
-  hosts: "{{ groups['cluster_provisioners'] | default('cluster-facts') }}"
+  hosts: cluster-facts
   gather_facts: false
   tags: cluster_info
   roles:
   - role: gmarcy.ansible.print_cluster_info
-    description: "{{ cluster_description }}"
+    description: "{{ options.cluster_description }}"

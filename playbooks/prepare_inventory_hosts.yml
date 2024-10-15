@@ -4,6 +4,7 @@
   hosts: playbook-facts
   gather_facts: false
   pre_tasks:
+  - fail: msg=broken
   - name: Check that we have all facts needed for this play
     ansible.builtin.assert:
       that:

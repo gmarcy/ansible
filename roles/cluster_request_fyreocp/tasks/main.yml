@@ -1,5 +1,68 @@
 ---
 
+- name: Assert that we have a cluster_name fact
+  ansible.builtin.assert:
+    that: hostvars['cluster-facts'].options.cluster_name is defined and hostvars['cluster-facts'].options.cluster_name | length > 0
+    msg: "Provisioning a fyre cluster requires a cluster_name fact"
+
+- name: Assert that we have a kubernetes_distro fact
+  ansible.builtin.assert:
+    that: options.kubernetes_distro is defined and options.kubernetes_distro | length > 0
+    msg: "Provisioning a Fyre cluster requires a kubernetes_distro fact"
+  vars:
+    kubernetes_distro: "{{ hostvars['cluster-facts'].options.kubernetes_distro }}"
+
+- name: Assert that the inventory_hostname is 'fyreocp-provisioner'
+  ansible.builtin.assert:
+    that: inventory_hostname == 'fyreocp-provisioner'
+    msg: "{{ 'The inventory_hostname for this role was \"' + inventory_hostname + '\" and not \"fyreocp-provisioner\"' }}"
+
+- name: Set ssh_keypair to empty
+  set_fact:
+    ssh_keypair: {}
+
+- name: Search for a keypair to use
+  set_fact:
+    ssh_keypair:
+      ssh_private_key: "{{ prvkey | b64encode }}"
+      ssh_public_key: "{{ pubkey | b64encode }}"
+  no_log: "{{ noLog }}"
+  loop:
+  - "{{ hostvars['localhost-facts'].local_home + '/.ssh/' + ssh_keypair_path_prefix + 'id_' + ssh_keytype }}"
+  loop_control:
+    label: "{{ item }}"
+  vars:
+    prvkey: "{{ lookup('file', item, errors='ignore') | default('') }}"
+    pubkey: "{{ lookup('file', item + '.pub', errors='ignore') | default('') }}"
+  when: ssh_keypair.keys() | length == 0 and pubkey != None and prvkey != None
+
+- name: Set vars_pre_env to default ssh keypair, defaults from group and overrides from inventory
+  set_fact:
+    vars_pre_env: "{{ ssh_keypair | combine(vars_host) | combine(vars_inventory | default({})) }}"
+
+- name: Set vars_env to empty
+  set_fact:
+    vars_env: {}
+
+- name: Add values to vars_env for all vars_pre_env keys
+  set_fact:
+    vars_env: "{{ vars_env | combine({key: value}) }}"
+  no_log: "{{ noLog }}"
+  loop: "{{ matching_vars }}"
+  loop_control:
+    label: "{{ item }}"
+  vars:
+    matching_keys: "{{ vars_pre_env.keys() | list | map('upper') }}"
+    matching_vars: "{{ hostvars['localhost-facts'].ansible_env | dict2items | selectattr('key', 'in', matching_keys) }}"
+    key: "{{ item.key.lower() }}"
+    value: "{{ item.value }}"
+  when: value | string | length > 0
+
+- name: Copy all variables into options map
+  set_fact:
+    options: "{{ vars_pre_env | combine(vars_env) }}"
+  no_log: "{{ noLog }}"
+
 - name: Set secret facts used in this role
   ansible.builtin.set_fact:
     _secrets:
@@ -123,23 +186,24 @@
   delegate_to: 'cluster-facts'
   delegate_facts: true
 
-- name: Create node groups for fyre_inf_hostname
-  ansible.builtin.add_host:
-    name: "{{ fyre_inf_hostname }}"
-    groups:
-    - all_nodes
-    - infra_node
-    ansible_python_interpreter: /usr/bin/python3.12
-    ansible_connection: ssh
-    ansible_host: "{{ fyre_inf_public_ip }}"
-    ansible_ssh_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
-    cluster_role: "infra"
-    fqdn: "{{ fyre_inf_hostname }}"
-    node_provisioning_role: ""
-    publicip: "{{ fyre_inf_public_ip }}"
-  changed_when: false
+# - name: Create node groups for fyre_inf_hostname
+#   ansible.builtin.add_host:
+#     name: "{{ fyre_inf_hostname }}"
+#     groups:
+#     - all_nodes
+#     - infra_node
+#     ansible_python_interpreter: /usr/bin/python3.12
+#     ansible_connection: ssh
+#     ansible_host: "{{ fyre_inf_public_ip }}"
+#     ansible_ssh_user: "{{ hostvars['playbook-facts'].options.remote_user }}"
+#     cluster_role: "infra"
+#     fqdn: "{{ fyre_inf_hostname }}"
+#     node_provisioning_role: ""
+#     publicip: "{{ fyre_inf_public_ip }}"
+#   changed_when: false
 
 - name: Clear temporary facts
   ansible.builtin.set_fact:
     _result_cluster_status: {}
     _result: {}
+    _secrets: {}

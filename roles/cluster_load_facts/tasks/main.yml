@@ -27,8 +27,8 @@
       console_username: "{{ 'kubeadmin' if console_password is defined else omit }}"
       kubeconfig_path: "{{ cluster_dir + '/kubeconfig' }}"
 
-  - name: Add host for cluster_provisioner if not present
-    ansible.builtin.add_host:
-      name: "{{ cluster_provisioner }}"
-    when: hostvars[cluster_provisioner] is not defined
-    changed_when: false
+  # - name: Add host for cluster_provisioner if not present
+  #   ansible.builtin.add_host:
+  #     name: "{{ options.cluster_provisioner }}"
+  #   when: hostvars[options.cluster_provisioner] is not defined
+  #   changed_when: false

@@ -1,5 +1,15 @@
 ---
 
+- name: Create undefined localhost aliases
+  hosts: localhost-facts
+  become: false
+  gather_facts: false
+  tags: cleanup_cluster
+  roles:
+  - role: gmarcy.ansible.define_localhost_aliases
+    localhost_aliases:
+    - 'cluster-facts'
+
 - name: Check if requested to stop here
   hosts: playbook-facts
   become: false
@@ -9,14 +19,21 @@
   - role: gmarcy.ansible.check_stop_before
     task_to_check: task-cleanup-cluster
 
-- name: "{{ 'Cleanup a cluster from ' + hostvars['cluster-facts']['cluster_provisioner'] | default('undefined cluster provisioner') }}"
-  hosts: "{{ hostvars['cluster-facts']['cluster_provisioner'] | default('playbook-facts') }}"
+- name: Set cluster-facts dependent upon localhost-facts
+  hosts: cluster-facts
+  gather_facts: false
+  tags: request_cluster
+  roles:
+  - role: gmarcy.ansible.cluster_facts_init
+
+- name: "{{ 'Cleanup a cluster from ' + hostvars['cluster-facts'].options.cluster_provisioner | default('undefined cluster provisioner') }}"
+  hosts: "{{ hostvars['cluster-facts'].options.cluster_provisioner | default('cluster-facts') }}"
   become: false
   gather_facts: false
   tags: cleanup_cluster
   roles:
   - role: gmarcy.ansible.end_current_play
-    when: inventory_hostname == 'playbook-facts' or deprovisioning_role is not defined
+    when: inventory_hostname == 'cluster-facts' or deprovisioning_role is not defined
   - role: gmarcy.ansible.include_dynamic_role
     dynamic_role: "{{ deprovisioning_role }}"
 

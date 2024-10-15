@@ -76,16 +76,16 @@
   become_user: "{{ gather_become_user if (gather_become_user is defined) else omit }}"
   changed_when: false
 
-- name: Change ssh_destination if using gather_become_user
+- name: Change _ssh_destination if using gather_become_user
   ansible.builtin.set_fact:
-    ssh_destination: "{{ gather_become_user + '@' + ansible_ssh_host }}"
+    _ssh_destination: "{{ gather_become_user + '@' + ansible_ssh_host }}"
   when: gather_become_user is defined
 
 - name: Add system connection definition
   ansible.builtin.command: |
     podman system connection add "{{ inventory_hostname }}" --identity "{{ hostvars['localhost-facts'].ssh_keypair_path }}" "{{ system_connection_uri }}"
   vars:
-    system_connection_uri: "{{ 'ssh://' + ssh_destination + ':' + (ssh_remote_port | default(22) | string) + runtime_path + '/podman/podman.sock' }}"
+    system_connection_uri: "{{ 'ssh://' + _ssh_destination + ':' + (ssh_remote_port | default(22) | string) + runtime_path + '/podman/podman.sock' }}"
   register: _result
   delegate_to: localhost-facts
   changed_when: false
