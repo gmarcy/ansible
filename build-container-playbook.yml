@@ -1,0 +1,38 @@
+---
+
+- name: Build and install our galaxy collection
+  hosts: localhost
+  become: false
+  gather_subset: "!all,network"
+  tasks:
+    - name: Install ansible-galaxy requirements
+      community.general.ansible_galaxy_install:
+        type: collection
+        requirements_file: requirements.yml
+        force: true
+
+    - name: Remove any existing gmarcy/ansible galaxy collection
+      ansible.builtin.file:
+        path: ~/.ansible/collections/ansible_collections/gmarcy/ansible
+        state: absent
+
+    - name: Build the gmarcy/ansible galaxy collection
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection build . --verbose --force --output-path releases/
+      register: _result
+
+    - name: Load the galaxy.yml file
+      ansible.builtin.include_vars:
+        name: galaxy_facts
+        file: galaxy.yml
+
+    - name: Install the gmarcy/ansible galaxy collection
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install --force --force-with-deps releases/gmarcy-ansible-{{ galaxy_facts.version }}.tar.gz
+      register: _result
+      failed_when: _result is not defined
+
+    - name: Clean up releases folder after installing the collection
+      ansible.builtin.file:
+        path: releases
+        state: absent
