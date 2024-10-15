@@ -1,3 +1,6 @@
+.secrets
 .tox
 .vscode
+container_secrets
+inventory
 releases
