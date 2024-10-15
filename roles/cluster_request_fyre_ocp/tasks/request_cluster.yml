@@ -4,6 +4,22 @@
   ansible.builtin.debug:
     msg: "{{ 'Cluster was not found so creating new cluster called ' + cluster_name }}"
 
+- name: Set secret facts used in this role
+  ansible.builtin.set_fact:
+    _secrets:
+      fyre_user: "{{ fyre_user }}"
+      fyre_apikey: "{{ fyre_apikey }}"
+      ssh_public_key: "{{ ssh_public_key }}"
+  vars:
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    fyre_user_secret: "{{ secrets.fyre_user }}"
+    fyre_apikey_secret: "{{ secrets.fyre_apikey }}"
+    ssh_public_key_secret: "{{ secrets.ssh_public_key }}"
+    fyre_user: "{{ lookup(fyre_user_secret.module, fyre_user_secret.param) | trim }}"
+    fyre_apikey: "{{ lookup(fyre_apikey_secret.module, fyre_apikey_secret.param) | trim }}"
+    ssh_public_key: "{{ lookup(ssh_public_key_secret.module, ssh_public_key_secret.param) | trim }}"
+  no_log: true
+
 - when: ocpVersion != 'custom'
   name: Set parameters for non-custom clusters
   block:
@@ -24,13 +40,10 @@
       ansible.builtin.uri:
         url: "{{ fyreocpplus_ocpavailableurl }}"
         method: "GET"
-        user: "{{ lookup('unvault', fyreuser) | trim }}"
-        password: "{{ lookup('unvault', fyreapikey) | trim }}"
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
         validate_certs: false
         force_basic_auth: "{{ fyre_force_basic_auth }}"
-      vars:
-        fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-        fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
       register: _result
 
     - name: Set the _ocp_version fact
@@ -96,8 +109,8 @@
   ansible.builtin.uri:
     url: "{{ fyreocpplus_ocpdeployurl }}"
     method: "POST"
-    user: "{{ lookup('unvault', fyreuser) | trim }}"
-    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     body_format: "json"
     force_basic_auth: "{{ fyre_force_basic_auth }}"
@@ -105,7 +118,7 @@
       name: "{{ cluster_name }}"
       platform: "{{ ocpPlatform }}"
       fips: "{{ _fips | default(omit) }}"
-      ssh_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
+      ssh_key: "{{ _secrets.ssh_public_key }}"
       ocp_version: "{{ _ocp_version | default(omit) }}"
       custom_ocp: "{{ _custom_ocp | default(omit) }}"
       site: "{{ fyre_site | default(omit) }}"
@@ -121,9 +134,6 @@
       time_to_live: "{{ _time_to_live | default(omit) }}"
       worker: "{{ _worker | default(omit) }}"
       master: "{{ _master | default(omit) }}"
-  vars:
-    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
   register: _result
   failed_when: _result.status | default(-1) not in [-1,200]
   delay: 20
@@ -151,6 +161,7 @@
     _pattern: "{{ '' if _pattern is defined else omit }}"
     _quota_type: "{{ '' if _quota_type is defined else omit }}"
     _result: {}
+    _secrets: {}
     _size: "{{ '' if _size is defined else omit }}"
     _time_to_live: "{{ '' if _time_to_live is defined else omit }}"
     _worker: "{{ '' if _worker is defined else omit }}"

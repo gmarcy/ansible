@@ -1,21 +1,28 @@
 ---
 
-# - name: Find address of localhost interface on cluster network
-#   ansible.builtin.import_role:
-#     name: find_address_on_cluster_network
-
 - name: Register our cluster with the assisted-install service
   ansible.builtin.set_fact:
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
     openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
-    openshift_pullsecret: "{{ hostvars['playbook-secrets']['openshift_pullsecret'] }}"
     cluster_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
-    ssh_public_key: "{{ hostvars['playbook-secrets']['ssh_public_key'] }}"
     http_proxy: "{{ hostvars['cluster-facts']['http_proxy'] }}"
     network_cidr: "{{ hostvars['cluster-facts']['network_cidr'] }}"
     single_node: "{{ hostvars['cluster-facts']['single_node'] }}"
     api_vip: "{{ hostvars['cluster-facts']['api_vip'] if not hostvars['cluster-facts']['single_node'] else omit }}"
     ingress_vip: "{{ hostvars['cluster-facts']['ingress_vip'] if not hostvars['cluster-facts']['single_node'] else omit }}"
+
+- name: Set secret facts used in this role
+  ansible.builtin.set_fact:
+    _secrets:
+      openshift_pullsecret: "{{ openshift_pullsecret }}"
+      ssh_public_key: "{{ ssh_public_key }}"
+  vars:
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    openshift_pullsecret_secret: "{{ secrets.openshift_pullsecret }}"
+    ssh_public_key_secret: "{{ secrets.ssh_public_key }}"
+    openshift_pullsecret: "{{ lookup(openshift_pullsecret_secret.module, openshift_pullsecret_secret.param) | trim }}"
+    ssh_public_key: "{{ lookup(ssh_public_key_secret.module, ssh_public_key_secret.param) | trim }}"
+  no_log: true
 
 - name: Get a list of the cluster objects
   ansible.builtin.uri:
@@ -46,10 +53,10 @@
         body:
           name: "{{ cluster_name }}"
           openshift_version: "{{ openshift_version }}"
-          pull_secret: "{{ lookup('unvault', openshift_pullsecret) | trim | string }}"
+          pull_secret: "{{ _secrets.openshift_pullsecret | string }}"
           high_availability_mode: "{{ high_availability_mode }}"
           base_dns_domain: "{{ cluster_domain }}"
-          ssh_public_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
+          ssh_public_key: "{{ _secrets.ssh_public_key }}"
           http_proxy: "{{ http_proxy }}"
           network_type: "{{ 'OVNKubernetes' if (single_node) else 'OpenShiftSDN' }}"
           machine_networks:
@@ -94,20 +101,24 @@
       proxy:
         http_proxy: "{{ http_proxy }}"
         no_proxy: ""
-      pull_secret: "{{ lookup('unvault', openshift_pullsecret) | trim | string }}"
-      ssh_authorized_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
+      pull_secret: "{{ _secrets.openshift_pullsecret | string }}"
+      ssh_authorized_key: "{{ _secrets.ssh_public_key }}"
     status_code: 201
   register: _result
   when: infra_env_id | default('') | length == 0
 
+- name: Clear _secrets fact
+  ansible.builtin.set_fact:
+    _secrets: {}
+
 - name: Check to see if we were asked to stop here
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: check_stop_after
   vars:
     task_to_check: assisted-register-cluster
 
 - name: Gather assisted cluster facts
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: cluster_gather_facts_assisted
   vars:
     cluster_facts_only: true
@@ -143,12 +154,17 @@
   until: _result is defined and _result.status == 200
 
 - name: Boot the cluster hosts
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: power_on_cluster_hosts
   vars:
-    cluster_host_names: "{{ hostvars['cluster-facts']['cluster_host_names'] }}"
-    ipmitool_password: "{{ hostvars['playbook-secrets']['ipmitool_password'] }}"
-    ipmitool_username: "{{ hostvars['playbook-secrets']['ipmitool_username'] }}"
+    cluster_host_names: "{{ hostvars['cluster-facts'].cluster_host_names }}"
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    ipmitool_username_secret: "{{ secrets.ipmitool_username }}"
+    ipmitool_password_secret: "{{ secrets.ipmitool_password }}"
+    ipmitool_username: "{{ lookup(ipmitool_username_secret.module, ipmitool_username_secret.param) }}"
+    ipmitool_password: "{{ lookup(ipmitool_password_secret.module, ipmitool_password_secret.param) }}"
+    ipmitool_username_value: "{{ ipmitool_username_secret.value | b64decode }}"
+    ipmitool_password_value: "{{ ipmitool_password_secret.value | b64decode }}"
 
 - name: Wait for all cluster hosts entries to appear in the infra-env
   ansible.builtin.uri:
@@ -371,13 +387,13 @@
       changed_when: _result is not defined
 
 - name: Gather the host facts
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: assisted_gather_hosts_facts
   vars:
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
 
 - name: Check to see if we should stop now
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: check_stop_after
   vars:
     task_to_check: assisted-register-hosts
@@ -435,7 +451,7 @@
       register: _result
 
 - name: Wait for the cluster install to complete
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: assisted_wait_for_install_complete
   vars:
     cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"

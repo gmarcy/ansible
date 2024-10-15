@@ -1,16 +1,26 @@
 ---
 
+- name: Set secret facts used in this role
+  ansible.builtin.set_fact:
+    _secrets:
+      fyre_user: "{{ fyre_user }}"
+      fyre_apikey: "{{ fyre_apikey }}"
+  vars:
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    fyre_user_secret: "{{ secrets.fyre_user }}"
+    fyre_apikey_secret: "{{ secrets.fyre_apikey }}"
+    fyre_user: "{{ lookup(fyre_user_secret.module, fyre_user_secret.param) | trim }}"
+    fyre_apikey: "{{ lookup(fyre_apikey_secret.module, fyre_apikey_secret.param) | trim }}"
+  no_log: true
+
 - name: Check if the name is in use
   ansible.builtin.uri:
     url: "{{ ocpplus_check_hostname }}"
     method: "GET"
-    user: "{{ lookup('unvault', fyreuser) | trim }}"
-    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     force_basic_auth: "{{ fyre_force_basic_auth }}"
-  vars:
-    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
   register: _result
   changed_when: false
   failed_when: _result.status | default(-1) not in [-1,200]
@@ -36,13 +46,10 @@
   ansible.builtin.uri:
     url: "{{ fyreocpplus_clusterstatusurl }}"
     method: GET
-    user: "{{ lookup('unvault', fyreuser) | trim }}"
-    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     force_basic_auth: "{{ fyre_force_basic_auth }}"
-  vars:
-    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
   register: _result_cluster_status
   changed_when: false
   delay: 20
@@ -62,13 +69,10 @@
   ansible.builtin.uri:
     url: "{{ fyreocpplus_clusterstatusurl }}"
     method: GET
-    user: "{{ lookup('unvault', fyreuser) | trim }}"
-    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     force_basic_auth: "{{ fyre_force_basic_auth }}"
-  vars:
-    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
-    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
   register: _result_cluster_status
   changed_when: false
   until: (_result_cluster_status.status == 200) and _result_cluster_status.json is defined and (_result_cluster_status.json.clusters[0].deployment_status == "deployed" or _result_cluster_status.json.clusters[0].deployment_status == "failed")

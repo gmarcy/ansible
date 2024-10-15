@@ -59,9 +59,12 @@
   loop: "{{ cluster_ipxe_macaddrs }}"
 
 - name: Power down the cluster hosts
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: power_off_cluster_hosts
   vars:
-    cluster_host_names: "{{ hostvars['cluster-facts']['cluster_host_names'] }}"
-    ipmitool_password: "{{ hostvars['playbook-secrets']['ipmitool_password'] }}"
-    ipmitool_username: "{{ hostvars['playbook-secrets']['ipmitool_username'] }}"
+    cluster_host_names: "{{ hostvars['cluster-facts'].cluster_host_names }}"
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    ipmitool_username_secret: "{{ secrets.ipmitool_username }}"
+    ipmitool_password_secret: "{{ secrets.ipmitool_password }}"
+    ipmitool_username: "{{ lookup(ipmitool_username_secret.module, ipmitool_username_secret.param) }}"
+    ipmitool_password: "{{ lookup(ipmitool_password_secret.module, ipmitool_password_secret.param) }}"
