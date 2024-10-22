@@ -8,7 +8,7 @@
   ansible.builtin.command: |
     {{ _ssh_command }} cat /etc/os-release
   register: _result_os_release
-  changed_when: "_result_os_release.rc == 0"
+  changed_when: _result_os_release.rc == 0
   delegate_to: 'localhost-facts'
 
 - name: Set _install_package_command fact
@@ -27,7 +27,7 @@
       ansible.builtin.command: |
         {{ _ssh_command }} sudo rpm-ostree status
       register: _result
-      changed_when: "_result.rc == 0"
+      changed_when: _result.rc == 0
       delegate_to: 'localhost-facts'
       delay: 20
       retries: 15
@@ -41,7 +41,7 @@
     {{ _ssh_command }} sudo {{ _install_package_command }} -y {{ ansible_python_interpreter | regex_replace('.*/', '') }}
   register: _result
   failed_when: _result.rc not in [0,1]
-  changed_when: "_result.rc == 0"
+  changed_when: _result.rc == 0
   delegate_to: 'localhost-facts'
 
 - name: Reconfirm that we can run ssh to inventory_hostname, sudo without a password, and the python interpreter is present
@@ -49,7 +49,7 @@
     {{ _ssh_command }} sudo ls {{ ansible_python_interpreter }}
   register: _result
   failed_when: _result is not defined
-  changed_when: "_result.rc == 0"
+  changed_when: _result.rc == 0
   delegate_to: 'localhost-facts'
 
 - name: Provide informative message if python not present on remote host

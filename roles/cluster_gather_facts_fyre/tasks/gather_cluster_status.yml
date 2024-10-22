@@ -67,7 +67,7 @@
   changed_when: false
   loop: "{{ request_ids }}"
   vars:
-    matching_requests: "{{ _result_show_requests.json.request | default([]) | selectattr('cluster_name', '==', cluster_name) }}"    
+    matching_requests: "{{ _result_show_requests.json.request | default([]) | selectattr('cluster_name', '==', cluster_name) }}"
     request_ids: "{{ matching_requests | map(attribute='id') }}"
     request_id: "{{ item }}"
   delay: 20

@@ -1,33 +1,35 @@
 ---
 
 - name: Set facts used in this next section
-  set_fact:
+  ansible.builtin.set_fact:
     container_name: "{{ hostvars['cluster-facts'].options.cluster_name + '-haproxy' }}"
     ingress_on_masters: true
 
 - name: Check for systemd user service config
-  stat:
+  ansible.builtin.stat:
     path: "{{ user_home + '/.config/systemd/user/container-' + container_name + '.service' }}"
   register: _result
 
 - name: Set fact that haproxy service config exists
-  set_fact:
+  ansible.builtin.set_fact:
     haproxy_service_defined: "{{ _result.stat.exists }}"
 
 - when: not haproxy_service_defined
+  name: Create haproxy artifacts
   block:
 
     - name: Create haproxy folders
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
+        mode: '0755'
       loop:
       - "{{ user_home + '/.kube/haproxy' }}"
       - "{{ user_home + '/.kube/haproxy/etc' }}"
       - "{{ user_home + '/.kube/haproxy/lib' }}"
 
     - name: Write cluster specific haproxy.cfg
-      copy:
+      ansible.builtin.copy:
         content: |
           #---------------------------------------------------------------------
           global
@@ -143,7 +145,7 @@
         mode: '0644'
 
     - name: Install buildah if required
-      package:
+      ansible.builtin.package:
         name:
         - buildah
         - podman
@@ -160,42 +162,49 @@
       args:
         executable: /bin/bash
       register: _result
-      changed_when: "_result.rc == 0"
+      changed_when: _result.rc == 0
 
     - name: Create a new container image for haproxy
-      command: |
+      ansible.builtin.command: |
         buildah from --name {{ 'buildah-' + container_name }} ghcr.io/haproxytech/haproxy-docker-debian:latest
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Update packages
-      command: |
+      ansible.builtin.command: |
         buildah run --user 0:0 {{ 'buildah-' + container_name }} -- env DEBIAN_FRONTEND=noninteractive apt-get -y update
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Install libcap2-bin
-      command: |
+      ansible.builtin.command: |
         buildah run --user 0:0 {{ 'buildah-' + container_name }} -- env DEBIAN_FRONTEND=noninteractive apt-get -y install libcap2-bin
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Update packages
-      command: |
+      ansible.builtin.command: |
         buildah run --user 0:0 {{ 'buildah-' + container_name }} -- setcap 'cap_net_bind_service=+ep' /usr/local/sbin/haproxy
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Copy generated haproxy.cfg into container
-      command: |
+      ansible.builtin.command: |
         buildah copy {{ 'buildah-' + container_name }} {{ user_home + '/.kube/haproxy/etc/haproxy.cfg' }} /usr/local/etc/haproxy/haproxy.cfg
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Commit the container image
-      command: |
+      ansible.builtin.command: |
         buildah commit {{ 'buildah-' + container_name }} {{ 'localhost/' + container_name + ':latest' }}
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Remove the buildah image
-      command: |
+      ansible.builtin.command: |
         buildah rm {{ 'buildah-' + container_name }}
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Run the container with podman
       containers.podman.podman_container:
@@ -209,7 +218,7 @@
       until: not _result_container_info.failed
 
     - name: Clear temp facts
-      set_fact:
+      ansible.builtin.set_fact:
         _result_container_info: null
 
     - name: Create a systemd unit for the container
@@ -218,7 +227,7 @@
         dest: "{{ user_home + '/.config/systemd/user/' }}"
 
     - name: Start the systemd unit
-      systemd:
+      ansible.builtin.systemd:
         name: "{{ 'container-' + container_name }}"
         daemon_reload: true
         state: started

@@ -32,6 +32,7 @@
   loop: "{{ localhost_spec.keys() | default([]) }}"
 
 - when: options.ssh_keypair_name is defined
+  name: Search for keypairs in all groups
   block:
 
     - name: Set ssh_keypair_name derived facts

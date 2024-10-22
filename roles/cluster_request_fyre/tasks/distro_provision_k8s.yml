@@ -1,9 +1,11 @@
 ---
 
-- fail: msg=stopping
+- name: This needs to be debugged
+  ansible.builtin.fail:
+    msg: 'this code needs to be updated'
 
 - name: Set of assertions for kubernetes clusters
-  assert:
+  ansible.builtin.assert:
     that:
     - options.fyre_bastion_count == bastion_count
     - options.fyre_master_count in [1, 3, 5]
@@ -12,13 +14,14 @@
     bastion_count: "{{ 0 if options.fyre_master_count == 1 else 1 }}"
 
 - when: options.fyre_group_id == 0
+  name: Lookup group id from quota
   block:
 
     - name: Lookup the quota available to us
-      uri:
+      ansible.builtin.uri:
         url: "{{ fyreocp_quotaurl }}"
         method: GET
-        user:  "{{ _secrets.fyre_user }}"
+        user: "{{ _secrets.fyre_user }}"
         password: "{{ _secrets.fyre_apikey }}"
         validate_certs: false
         force_basic_auth: "{{ options.fyre_force_basic_auth }}"
@@ -26,14 +29,14 @@
       register: _result_user_quota
 
     - name: Set _fyre_group_id fact
-      set_fact:
+      ansible.builtin.set_fact:
         _fyre_group_id: "{{ _result_user_quota.json.details | map(attribute='product_group_id') | first | int }}"
 
 - name: Wait until we have enough quota for the request
-  uri:
+  ansible.builtin.uri:
     url: "{{ fyre_getquotaurl }}"
     method: GET
-    user:  "{{ _secrets.fyre_user }}"
+    user: "{{ _secrets.fyre_user }}"
     password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     force_basic_auth: "{{ options.fyre_force_basic_auth }}"
@@ -52,7 +55,7 @@
   until: cluster_mem_available >= cluster_mem_needed
 
 - name: Ensure empty cluster dir
-  file:
+  ansible.builtin.file:
     path: "{{ cluster_dir }}"
     mode: '0755'
     state: "{{ item }}"
@@ -61,7 +64,7 @@
   - directory
 
 - name: Write cluster specific fyre request body
-  copy:
+  ansible.builtin.copy:
     content: |
       fyre:
         creds:
@@ -125,6 +128,6 @@
     mode: '0600'
 
 - name: Clear register results and temporary facts
-  set_fact:
+  ansible.builtin.set_fact:
     _fyre_group_id: 0
     _result_user_quota: {}

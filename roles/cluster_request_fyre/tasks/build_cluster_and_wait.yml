@@ -1,7 +1,7 @@
 ---
 
 - name: Build Fyre stack
-  uri:
+  ansible.builtin.uri:
     url: "{{ fyre_clusterbuildurl }}"
     method: "POST"
     user: "{{ _secrets.fyre_user }}"
@@ -13,16 +13,16 @@
   register: fyre_status
 
 - name: Set fact for response
-  set_fact:
+  ansible.builtin.set_fact:
     response_json: "{{ fyre_status.json }}"
 
 - name: Check for errors
-  assert:
+  ansible.builtin.assert:
     that: response_json.status in ['submitted', 'success']
     msg: "cluster build request failed"
 
 - name: Set fact for request_id
-  set_fact:
+  ansible.builtin.set_fact:
     request_id: "{{ response_json.request_id }}"
 
 - name: Wait until cluster has completed operation
@@ -40,10 +40,10 @@
   until: (_result_show_request.status == 200) and (_result_show_request.json.request | length > 0) and not (_result_show_request.json.request[0].status in ['building', 'deleting', 'pending delete'])
 
 - name: Fetch the cluster status
-  uri:
+  ansible.builtin.uri:
     url: "{{ fyre_showallclustersurl }}"
     method: GET
-    user:  "{{ _secrets.fyre_user }}"
+    user: "{{ _secrets.fyre_user }}"
     password: "{{ _secrets.fyre_apikey }}"
     validate_certs: false
     force_basic_auth: "{{ options.fyre_force_basic_auth }}"
@@ -54,13 +54,13 @@
   until: cluster_status_response.status != -1
 
 - name: Set cluster_status_json fact
-  set_fact:
+  ansible.builtin.set_fact:
     cluster_status_json: "{{ cluster_status_response.json.clusters | selectattr('name', '==', cluster_name) | first }}"
 
 - name: Set cluster_status fact
-  set_fact:
+  ansible.builtin.set_fact:
     cluster_status: "{{ cluster_status_json.status | default('error') }}"
 
 - name: Check for error
-  assert:
+  ansible.builtin.assert:
     that: cluster_status != 'error'

@@ -1,7 +1,7 @@
 ---
 
 - name: Set need_artifactory_token fact
-  set_fact:
+  ansible.builtin.set_fact:
     _need_artifactory_token: "{{ paths.artifactory_identity_token is defined and artifactory_token is not defined }}"
 
 - when: _need_artifactory_token and artifactory_generate_access_token is defined
@@ -12,7 +12,7 @@
   block:
 
     - name: See if we already have an existing access token
-      stat:
+      ansible.builtin.stat:
         path: "{{ access_token_path }}"
       register: _result_stat
 
@@ -23,14 +23,14 @@
       block:
 
         - name: Make sure the cluster dir exists
-          file:
+          ansible.builtin.file:
             path: "{{ cluster_dir }}"
             state: directory
             mode: '0755'
           register: _result
 
         - name: Create access_token for this cluster
-          uri:
+          ansible.builtin.uri:
             url: "{{ artifactory_generate_access_token.url }}"
             method: "POST"
             headers:
@@ -45,7 +45,7 @@
           until: _result.json is defined
 
         - name: Copy reference token to cluster_dir
-          copy:
+          ansible.builtin.copy:
             content: |
               {{ artifactory_token }}
             dest: "{{ access_token_path }}"
@@ -54,11 +54,11 @@
             artifactory_token: "{{ _result.json.reference_token }}"
 
     - name: Set fact with the path to the artifactory access token
-      set_fact:
+      ansible.builtin.set_fact:
         artifactory_token: "{{ access_token_path }}"
 
 - name: Clear register facts
-  set_fact:
+  ansible.builtin.set_fact:
     _need_artifactory_token: false
     _result: {}
     _result_stat: {}

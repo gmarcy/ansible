@@ -1,7 +1,7 @@
 ---
 
 - name: Create node groups
-  add_host:
+  ansible.builtin.add_host:
     name: "{{ item.node }}"
     groups: "{{ host_node_groups[host_node_role] }}"
     ansible_connection: ssh
@@ -33,18 +33,18 @@
   changed_when: false
 
 - name: Set bastion node hostname fact
-  set_fact:
+  ansible.builtin.set_fact:
     _bastion_hostname: "{{ (groups['bastion_node'] if (groups['bastion_node'] | default([]) | length > 0) else groups['master_nodes']) | default([]) | first }}"
 
 - name: Wait until we can resolve the hostname using DNS
-  set_fact:
+  ansible.builtin.set_fact:
     _bastion_publicip: "{{ lookup('community.general.dig', hostvars[_bastion_hostname].fqdn, '@9.0.0.2') }}"
   delay: 20
   retries: 30
   until: lookup('community.general.dig', hostvars[_bastion_hostname].fqdn, '@9.0.0.2') == hostvars[_bastion_hostname].publicip
 
 - name: Set kubeconfig_path and cluster_api_url facts
-  set_fact:
+  ansible.builtin.set_fact:
     cluster_api_url: "{{ 'https://' + hostvars[_bastion_hostname].fqdn + ':6443' }}"
     cluster_domain: "{{ fyre_cluster_domain }}"
     cluster_fqdn: "{{ hostvars[_bastion_hostname].fqdn }}"
@@ -56,7 +56,7 @@
   delegate_facts: true
 
 - name: Create cluster specific ssh config
-  set_fact:
+  ansible.builtin.set_fact:
     _ssh_config_content: |
       Host {{ _bastion_hostname + ' ' + _bastion_hostname + '.' + fyre_cluster_domain }}
           Hostname {{ _bastion_hostname + '.' + fyre_cluster_domain }}

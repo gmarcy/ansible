@@ -1,17 +1,17 @@
 ---
 
 - name: Set facts used in this next section
-  set_fact:
+  ansible.builtin.set_fact:
     container_name: "{{ hostvars['cluster-facts'].options.cluster_name + '-registry-proxy' }}"
     registry_proxy_certs: "{{ user_home + '/.kube/registry-proxy/certs' }}"
 
 - name: Check for systemd user service config
-  stat:
+  ansible.builtin.stat:
     path: "{{ user_home + '/.config/systemd/user/container-' + container_name + '.service' }}"
   register: _result
 
 - name: Set fact that registry proxy service config exists
-  set_fact:
+  ansible.builtin.set_fact:
     registry_proxy_service_defined: "{{ _result.stat.exists }}"
 
 - when: not registry_proxy_service_defined
@@ -19,11 +19,11 @@
   block:
 
     - name: Set facts used in this section
-      set_fact:
+      ansible.builtin.set_fact:
         registry_proxy_mirror_cache: "{{ user_home + '/.kube/registry-proxy/mirror_cache' }}"
 
     - name: Make sure directories exist
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         mode: '0700'
@@ -32,7 +32,7 @@
       - "{{ registry_proxy_certs }}"
 
     - name: Install buildah if required
-      package:
+      ansible.builtin.package:
         name:
         - buildah
         - podman
@@ -49,27 +49,31 @@
       args:
         executable: /bin/bash
       register: _result
-      changed_when: "_result.rc == 0"
+      changed_when: _result is not defined
 
     - name: Create a new container image for the registry proxy
-      command: |
+      ansible.builtin.command: |
         buildah from --name {{ 'buildah-' + container_name }} ghcr.io/gmarcy/container-registry-proxy:latest
       register: _result
+      changed_when: _result is not defined
 
     - name: Update packages
-      command: |
+      ansible.builtin.command: |
         buildah run {{ 'buildah-' + container_name }} -- apk upgrade
       register: _result
+      changed_when: _result is not defined
 
     - name: Commit the container image
-      command: |
+      ansible.builtin.command: |
         buildah commit {{ 'buildah-' + container_name }} {{ 'localhost/' + container_name + ':latest' }}
       register: _result
+      changed_when: _result is not defined
 
     - name: Remove the buildah image
-      command: |
+      ansible.builtin.command: |
         buildah rm {{ 'buildah-' + container_name }}
       register: _result
+      changed_when: _result is not defined
 
     - name: Set _proxy_registry and _proxy_auth_registries facts
       ansible.builtin.set_fact:
@@ -129,7 +133,7 @@
         dest: "{{ user_home + '/.config/systemd/user/' }}"
 
     - name: Start the systemd unit
-      systemd:
+      ansible.builtin.systemd:
         name: "{{ 'container-' + container_name }}"
         daemon_reload: true
         state: started
@@ -137,19 +141,19 @@
         scope: user
 
 - name: Wait until ca.crt has been created
-  stat:
+  ansible.builtin.stat:
     path: "{{ registry_proxy_certs + '/ca.crt' }}"
   register: _result
   until: _result.stat.exists
 
 - name: Fetch the contents of the ca.crt
-  command: |
+  ansible.builtin.command: |
     cat {{ registry_proxy_certs + '/ca.crt' }}
   register: _result
   changed_when: false
 
 - name: Set a fact for the ca.cert
-  set_fact:
+  ansible.builtin.set_fact:
     ca_cert_contents: "{{ _result.stdout | trim }}"
     using_registry_proxy: true
   delegate_to: 'cluster-facts'

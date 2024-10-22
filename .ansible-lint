@@ -13,3 +13,4 @@ skip_list:
   - 'git-latest'                # Git checkouts must contain explicit version.
   - 'var-naming'
   - 'no-free-form'
+  - 'no-handler'

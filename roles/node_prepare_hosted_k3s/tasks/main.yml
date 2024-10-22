@@ -1,11 +1,12 @@
 ---
 
 - name: Check for next step completed marker
-  stat:
+  ansible.builtin.stat:
     path: .ansible/packages_installed_marker
   register: _result_packages_installed
 
 - when: not _result_packages_installed.stat.exists
+  name: Install prerequisites
   block:
 
     - name: Install python3-pip, python3-libselinux and python3-libsemanage packages
@@ -28,16 +29,17 @@
       become_user: root
       register: _result
       failed_when: _result is not defined
+      changed_when: _result is not defined
 
     - name: Create marker for packages_installed
-      file:
+      ansible.builtin.file:
         path: .ansible/packages_installed_marker
         state: touch
         mode: '0644'
       changed_when: false
 
 - name: Include prepare_node_roles when defined
-  include_role:
+  ansible.builtin.include_role:
     name: "{{ prepare_node_role }}"
   loop: "{{ prepare_node_roles | default([]) }}"
   loop_control:

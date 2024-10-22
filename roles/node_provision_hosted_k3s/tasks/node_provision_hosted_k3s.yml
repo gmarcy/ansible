@@ -11,19 +11,19 @@
       register: _result_k3s_channels
 
     - name: Fetch the latest version from the stable channel
-      set_fact:
+      ansible.builtin.set_fact:
         k3s_latest_stable: "{{ k3s_channels.data | selectattr('name', '==', 'stable') | map(attribute='latest') | first }}"
       vars:
         k3s_channels: "{{ _result_k3s_channels.json }}"
 
     - name: Set the kubernetes version from the k3s version
-      set_fact:
+      ansible.builtin.set_fact:
         k8s_version: "{{ k3s_latest_stable | regex_replace('v(.*)\\+k3s.*', '\\1') }}"
       delegate_to: 'cluster-facts'
       delegate_facts: true
 
     - name: Create registries file template
-      copy:
+      ansible.builtin.copy:
         content: |
           mirrors:
           configs:
@@ -66,12 +66,12 @@
       block:
 
         - name: Install ca-certificates package
-          package:
+          ansible.builtin.package:
             name: ca-certificates
             state: present
 
         - name: Copy the ca cert into the cluster node
-          copy:
+          ansible.builtin.copy:
             content: |
               {{ hostvars['cluster-facts']['ca_cert_contents'] }}
             dest: '/etc/pki/ca-trust/source/anchors/container_registry_proxy.crt'
@@ -79,7 +79,7 @@
           when: ansible_distribution == 'CentOS'
 
         - name: Copy the ca cert into the cluster node
-          copy:
+          ansible.builtin.copy:
             content: |
               {{ hostvars['cluster-facts']['ca_cert_contents'] }}
             dest: '/usr/share/ca-certificates/container_registry_proxy.crt'
@@ -87,26 +87,28 @@
           when: ansible_distribution != 'CentOS'
 
         - name: Add line for certificate to /etc/ca-certificates.conf
-          lineinfile:
+          ansible.builtin.lineinfile:
             path: '/etc/ca-certificates.conf'
             regexp: '^container_registry_proxy.crt$'
             line: 'container_registry_proxy.crt'
           when: ansible_distribution != 'CentOS'
 
         - name: Update the ca certs on the cluster node
-          command: |
+          ansible.builtin.command: |
             update-ca-trust extract
           register: _result
+          changed_when: _result.rc == 0
           when: ansible_distribution == 'CentOS'
 
         - name: Update the ca certs on the cluster node
-          command: |
+          ansible.builtin.command: |
             update-ca-certificates --fresh
           register: _result
+          changed_when: _result.rc == 0
           when: ansible_distribution != 'CentOS'
 
         - name: Set fact for environment_proxy
-          set_fact:
+          ansible.builtin.set_fact:
             environment_proxy:
               HTTP_PROXY: "{{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}"
               HTTPS_PROXY: "{{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}"
@@ -116,22 +118,23 @@
             k8s_infra_privateip: "{{ hostvars[services_host].privateip }}"
 
     - name: Create k3s folder
-      file:
+      ansible.builtin.file:
         path: '/etc/rancher/k3s'
         state: directory
+        mode: '0755'
       become: true
       become_user: root
 
     - name: Fetch k3s.sh
-      get_url:
+      ansible.builtin.get_url:
         url: https://get.k3s.io
         dest: ./k3s.sh
-        mode: 0755
+        mode: '0755'
         validate_certs: false
       register: _result
 
     - name: Create registries file
-      template:
+      ansible.builtin.template:
         src: "{{ cluster_dir + '/registries.yaml.j2' }}"
         dest: '/etc/rancher/k3s/registries.yaml'
         mode: '0600'
@@ -139,7 +142,7 @@
       become_user: root
 
     - name: Set k3s node subcommand based on cluster role
-      set_fact:
+      ansible.builtin.set_fact:
         k3s_subcommand: "{{ 'server' if cluster_role == 'master' else 'agent' }}"
         k3s_common_args: --disable=traefik --disable=servicelb --disable=local-storage
 
@@ -148,16 +151,17 @@
   block:
 
     - name: Create folders on bastion node
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
+        mode: '0755'
       loop:
       - "{{ user_home + '/.local/bin' }}"
       - "{{ user_home + '/.ssh' }}"
       - "{{ user_home + '/tmp' }}"
 
     - name: Download the kubectl cli for our version of kubernetes
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ 'https://dl.k8s.io/release/v' + k8s_version + '/bin/' + os_family + '/' + cpu_arch + '/kubectl' }}"
         dest: "{{ user_home + '/.local/bin/kubectl' }}"
         mode: '0755'
@@ -169,7 +173,7 @@
   block:
 
     - name: Print out the environment we are passing into the script
-      debug:
+      ansible.builtin.debug:
         msg: "{{ environment }}"
       vars:
         k8s_version: "{{ hostvars['cluster-facts'].k8s_version }}"
@@ -179,7 +183,7 @@
         environment: "{{ environment_k3s | combine(environment_proxy | default({})) }}"
 
     - name: Run script
-      command: |
+      ansible.builtin.command: |
         /bin/bash ./k3s.sh {{ k3s_subcommand }} {{ k3s_common_args }} --cluster-init {{ tls_san_args | list | join(' ') }}
       environment: "{{ environment_k3s | combine(environment_proxy | default({})) }}"
       vars:
@@ -195,6 +199,8 @@
         environment_k3s:
           INSTALL_K3S_CHANNEL: "{{ 'v' + k8s_version.split('.')[:2] | join('.') }}"
           INSTALL_K3S_VERSION: "{{ k3s_latest_stable }}"
+      register: _result
+      changed_when: _result.rc == 0
 
     - when: hostvars[inventory_hostname].package_manager == 'community.general.rpm_ostree_pkg'
       name: Apply ostree updates
@@ -204,9 +210,10 @@
       become_user: root
       register: _result
       failed_when: _result is not defined
+      changed_when: _result.rc == 0
 
     - name: Add proxy settings to the containerd environment
-      blockinfile:
+      ansible.builtin.blockinfile:
         block: |
           CONTAINERD_HTTP_PROXY={{ environment_proxy.HTTP_PROXY }}
           CONTAINERD_HTTPS_PROXY={{ environment_proxy.HTTPS_PROXY }}
@@ -218,7 +225,7 @@
       when: hostvars['cluster-facts'].using_registry_proxy | default(false)
 
     - name: Check systemctl status of k3s service
-      systemd:
+      ansible.builtin.systemd:
         unit: k3s
         state: restarted
       become: true
@@ -226,13 +233,13 @@
       register: _result
 
     - name: Wait until k3s.yaml has been created
-      stat:
+      ansible.builtin.stat:
         path: /etc/rancher/k3s/k3s.yaml
       register: _result
       until: _result.stat.exists
 
     - name: Load node-token
-      command: |
+      ansible.builtin.command: |
         cat /var/lib/rancher/k3s/server/node-token
       register: _result
       become: true
@@ -240,7 +247,7 @@
       changed_when: _result is not defined
 
     - name: Set k3s_node_token fact
-      set_fact:
+      ansible.builtin.set_fact:
         k3s_node_token: "{{ _result.stdout | trim }}"
       delegate_to: 'cluster-facts'
       delegate_facts: true
@@ -250,7 +257,7 @@
   block:
 
     - name: Run script
-      command: |
+      ansible.builtin.command: |
         /bin/bash ./k3s.sh {{ k3s_subcommand }} {{ k3s_common_args }} --server {{ k3s_server }} --token {{ k3s_token }}
       environment: "{{ environment_k3s | combine(environment_proxy | default({})) }}"
       vars:
@@ -261,9 +268,11 @@
         k8s_version: "{{ hostvars['cluster-facts']['k8s_version'] }}"
         environment_k3s:
           INSTALL_K3S_CHANNEL: "{{ 'v' + k8s_version.split('.')[:2] | join('.') }}"
+      register: _result
+      changed_when: _result.rc == 0
 
     - name: Add proxy settings to the containerd environment
-      blockinfile:
+      ansible.builtin.blockinfile:
         block: |
           CONTAINERD_HTTP_PROXY={{ environment_proxy.HTTP_PROXY }}
           CONTAINERD_HTTPS_PROXY={{ environment_proxy.HTTPS_PROXY }}
@@ -275,7 +284,7 @@
       when: hostvars['cluster-facts'].using_registry_proxy | default(false)
 
     - name: Check systemctl status of k3s-agent service
-      systemd:
+      ansible.builtin.systemd:
         unit: k3s-agent
         state: restarted
       register: _result
@@ -283,7 +292,7 @@
 
 - when: inventory_hostname in groups['cluster_nodes']
   name: Create marker for node provisioned
-  file:
+  ansible.builtin.file:
     path: .ansible/k3s_node_provisioned
     state: touch
     mode: '0644'

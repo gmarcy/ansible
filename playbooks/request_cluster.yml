@@ -37,7 +37,8 @@
   - role: gmarcy.ansible.include_dynamic_role
     dynamic_role: "{{ provisioning_role }}"
 
-- import_playbook: gmarcy.ansible.gather_cluster_facts_common
+- name: Gather common cluster facts
+  import_playbook: gmarcy.ansible.gather_cluster_facts_common
 
 - name: Prepare and provision all nodes
   hosts: "{{ groups['all_nodes'] | default('cluster-facts') }}"
@@ -51,7 +52,8 @@
   - role: gmarcy.ansible.include_dynamic_role
     dynamic_role: "{{ node_provisioning_role }}"
 
-- import_playbook: gmarcy.ansible.run_post_provisioning_roles
+- name: Run post provisioning roles
+  import_playbook: gmarcy.ansible.run_post_provisioning_roles
 
 - name: Check if requested to stop here
   hosts: playbook-facts

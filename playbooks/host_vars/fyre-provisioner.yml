@@ -43,6 +43,7 @@ fyreocp_quotaurl: 'https://ocpapi.svl.ibm.com/v1/quota'
 # Fyre parameters
 
 vars_host:
+  fyre_remote_user: 'root'
   fyre_site: 'rtp'
   fyre_platform: 'x'
   fyre_group_id: 0
