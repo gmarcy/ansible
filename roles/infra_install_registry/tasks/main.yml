@@ -1,29 +1,30 @@
 ---
 
 - name: Set facts used in this next section
-  set_fact:
+  ansible.builtin.set_fact:
     container_name: "{{ hostvars['cluster-facts'].options.cluster_name + '-registry' }}"
     registry_certs_path_base: "{{ user_home + '/.kube/registry/certs' }}"
     registry_auth_path_base: "{{ user_home + '/.kube/registry/auth' }}"
 
 - name: Check for systemd user service config
-  stat:
+  ansible.builtin.stat:
     path: "{{ user_home + '/.config/systemd/user/container-' + container_name + '.service' }}"
   register: _result
 
 - name: Set fact that registry service config exists
-  set_fact:
+  ansible.builtin.set_fact:
     registry_service_defined: "{{ _result.stat.exists }}"
 
 - when: not registry_service_defined
+  name: Build container image
   block:
 
     - name: Set facts needed in this section
-      set_fact:
+      ansible.builtin.set_fact:
         registry_http_secret: ChangeLaterIfEverNeeded
 
     - name: Install buildah if required
-      package:
+      ansible.builtin.package:
         name:
         - buildah
         - podman
@@ -40,27 +41,31 @@
       args:
         executable: /bin/bash
       register: _result
-      changed_when: "_result.rc == 0"
+      changed_when: _result.rc == 0
 
     - name: Create a new container image for the registry
-      command: |
+      ansible.builtin.command: |
         buildah from --name {{ 'buildah-' + container_name }} ghcr.io/distribution/distribution:edge
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Update packages
-      command: |
+      ansible.builtin.command: |
         buildah run {{ 'buildah-' + container_name }} -- apk upgrade
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Commit the container image
-      command: |
+      ansible.builtin.command: |
         buildah commit {{ 'buildah-' + container_name }} {{ 'localhost/' + container_name + ':latest' }}
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Remove the buildah image
-      command: |
+      ansible.builtin.command: |
         buildah rm {{ 'buildah-' + container_name }}
       register: _result
+      changed_when: _result.rc == 0
 
     - name: Run the container with podman
       containers.podman.podman_container:
@@ -93,7 +98,7 @@
         dest: "{{ user_home + '/.config/systemd/user/' }}"
 
     - name: Start the systemd unit
-      systemd:
+      ansible.builtin.systemd:
         name: "{{ 'container-' + container_name }}"
         daemon_reload: true
         state: started

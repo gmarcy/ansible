@@ -1,0 +1,13 @@
+---
+
+- when: inventory_hostname == (groups['all_nodes'] | first)
+  name: Tasks which are only performed on the first VM
+  block:
+
+    - name: Uninstall tWAS server
+      ansible.builtin.shell:
+        chdir: /opt/scripts
+        cmd: source /opt/autowas/bin/AutoWASEnv.sh && cfg -cfg default_v9_latest_2node.cfg force_uninstall
+        executable: /bin/bash
+      register: _result
+      changed_when: _result.start != None

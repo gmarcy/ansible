@@ -1,21 +1,21 @@
 ---
 
 - name: Set facts for this role
-  set_fact:
+  ansible.builtin.set_fact:
     registry_certs_path_base: "{{ user_home + '/.kube/registry/certs' }}"
     registry_auth_path_base: "{{ user_home + '/.kube/registry/auth' }}"
 
 - name: Check if we already have the registry artifacts
-  stat:
+  ansible.builtin.stat:
     path: "{{ registry_auth_path_base + '/htpasswd' }}"
   register: _result
 
 - name: Set fact if work completed
-  set_fact:
+  ansible.builtin.set_fact:
     registry_artifacts_exist: "{{ _result.stat.exists }}"
 
 - name: Set facts for this role
-  set_fact:
+  ansible.builtin.set_fact:
     cluster_ip: "{{ hostvars['cluster-facts']['cluster_publicip'] }}"
     cluster_ip_fqdn: "{{ hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
     cluster_fqdn: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
@@ -27,7 +27,7 @@
     ca_path_base: "{{ user_home + '/.kube/cluster-ca' }}"
 
 - name: Set fact for cluster subject alternative names
-  set_fact:
+  ansible.builtin.set_fact:
     registry_url: "{{ cluster_fqdn + ':5000' }}"
     cluster_san:
     - "{{ 'IP:' + cluster_ip }}"
@@ -40,10 +40,11 @@
     - "{{ 'DNS:cp-console.' + cluster_fqdn }}"
 
 - when: not registry_artifacts_exist
+  name: Get prerequisites
   block:
 
     - name: Create directories
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         mode: '0700'
@@ -53,13 +54,13 @@
       - "{{ registry_auth_path_base }}"
 
     - name: Add python3-pip package
-      package:
+      ansible.builtin.package:
         name:
           - python3-pip
         state: present
 
     - name: Add python libraries we need
-      package:
+      ansible.builtin.package:
         name:
           - python3-kubernetes
           - python3-cryptography
@@ -68,7 +69,7 @@
       when: ansible_distribution == 'Ubuntu'
 
     - name: Add python libraries we need
-      pip:
+      ansible.builtin.pip:
         name:
         - kubernetes
         - cryptography
@@ -88,36 +89,37 @@
         mode: '0600'
 
 - name: Create default registry_pullsecret
-  set_fact:
+  ansible.builtin.set_fact:
     registry_pullsecret: "{{ '{\"auths\": {}}' | from_json }}"
 
 - name: Set disconnected_auth
-  set_fact:
+  ansible.builtin.set_fact:
     disconnected_registry_up: "{{ (registry_username + ':' + registry_password) | b64encode }}"
 
 - name: Create registry auth for pullsecret
-  set_fact:
+  ansible.builtin.set_fact:
     disconnected_auth: "{{ ('{\"auths\": {\"' + registry_url + '\": {\"auth\": \"' + disconnected_registry_up + '\"}}}') | from_json }}"
 
 - name: Add disconnected auth to pullsecret
-  set_fact:
+  ansible.builtin.set_fact:
     _result_pullsecret: "{{ registry_pullsecret | combine(disconnected_auth, recursive=true) }}"
 
 - name: Override final registry_pullsecret with both auths
-  set_fact:
+  ansible.builtin.set_fact:
     registry_pullsecret: "{{ _result_pullsecret }}"
 
 - name: Debug the creds dictionary
-  debug:
+  ansible.builtin.debug:
     var: registry_pullsecret
 
 - name: Set registry_pullsecret fact
-  set_fact:
+  ansible.builtin.set_fact:
     registry_pullsecret: "{{ registry_pullsecret }}"
   delegate_to: options.cluster_provisioner
   delegate_facts: true
 
 - when: not registry_artifacts_exist
+  name: Create certificates
   block:
 
     # Set up the CA
@@ -165,13 +167,13 @@
       register: csr
 
     - name: Check whether certificate exists
-      stat:
+      ansible.builtin.stat:
         path: "{{ registry_certs_path_base + '/certificate.pem' }}"
       run_once: true
       register: certificate_exists
 
     - name: Read existing certificate if exists
-      slurp:
+      ansible.builtin.slurp:
         src: "{{ registry_certs_path_base + '/certificate.pem' }}"
       when: certificate_exists.stat.exists
       run_once: true
@@ -191,8 +193,9 @@
       register: certificate
 
     - name: Write certificate file for registry
-      copy:
+      ansible.builtin.copy:
         dest: "{{ registry_certs_path_base + '/certificate.pem' }}"
         content: "{{ certificate.certificate }}"
+        mode: '0600'
       run_once: true
       when: certificate is changed

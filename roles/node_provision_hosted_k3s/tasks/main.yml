@@ -1,7 +1,7 @@
 ---
 
 - name: Set facts used in this role
-  set_fact:
+  ansible.builtin.set_fact:
     cluster_dir: "{{ hostvars['cluster-facts'].cluster_dir }}"
     cluster_domain: "{{ hostvars['cluster-facts'].options.cluster_domain }}"
     cluster_name: "{{ hostvars['cluster-facts'].options.cluster_name }}"
@@ -17,26 +17,27 @@
   block:
 
     - name: Check to see if we have provisioned this node
-      stat:
+      ansible.builtin.stat:
         path: .ansible/k3s_node_provisioned
       register: _result
 
     - when: inventory_hostname == groups['cluster_nodes'] | first
       name: Set fact if node provisioning completed
-      set_fact:
+      ansible.builtin.set_fact:
         nodes_provisioned: "{{ groups['cluster_nodes'] | map('extract', hostvars, '_result') | map(attribute='stat.exists') | unique | difference([true]) | length == 0 }}"
       delegate_to: 'cluster-facts'
       delegate_facts: true
 
 - when: not hostvars['cluster-facts'].nodes_provisioned
   name: Some nodes have not been provisioned
-  include_tasks: node_provision_hosted_k3s.yml
+  ansible.builtin.include_tasks: node_provision_hosted_k3s.yml
 
 - when: inventory_hostname == groups['cluster_nodes'] | first
+  name: Get the kube config from the first node
   block:
 
     - name: Retrieve k3s config
-      command:
+      ansible.builtin.command:
         cat /etc/rancher/k3s/k3s.yaml
       register: _result
       changed_when: _result is not defined
@@ -44,7 +45,7 @@
       become_user: root
 
     - name: Save the kube config
-      set_fact:
+      ansible.builtin.set_fact:
         kube_config: "{{ _result.stdout | trim }}"
       delegate_to: 'cluster-facts'
       delegate_facts: true
@@ -54,12 +55,12 @@
   block:
 
     - name: Check for .kube/config file on infra host
-      stat:
+      ansible.builtin.stat:
         path: .kube/config
       register: _result
 
     - name: Set fact that .kube/config exists
-      set_fact:
+      ansible.builtin.set_fact:
         kube_config_exists: "{{ _result.stat.exists }}"
 
     - when: not kube_config_exists
@@ -67,45 +68,47 @@
       block:
 
         - name: Create folders on the infra node
-          file:
+          ansible.builtin.file:
             path: "{{ item }}"
             state: directory
+            mode: '0755'
           loop:
           - '.kube'
           - '.local/bin'
 
         - name: Copy the k8s_config to .kube/config on the infra node
-          copy:
+          ansible.builtin.copy:
             content: |
               {{ hostvars['cluster-facts']['kube_config'] }}
             dest: .kube/config
             mode: '0600'
 
         - name: Replace references to localhost ipaddr with infra hostname
-          replace:
+          ansible.builtin.replace:
             path: .kube/config
             regexp: '^    server: https://127.0.0.1:6443$'
             replace: "{{ '    server: https://' + hostvars['cluster-facts'].cluster_nip_fqdn + ':6443' }}"
 
         - name: Replace all references to localhost with infra hostname
-          replace:
+          ansible.builtin.replace:
             path: .kube/config
             regexp: 'default'
             replace: "{{ cluster_name }}"
 
         - name: Remove any stale cluster_dir kubeconfig
-          file:
+          ansible.builtin.file:
             path: "{{ cluster_dir + '/kubeconfig' }}"
             state: absent
           delegate_to: 'cluster-facts'
 
         - name: Load contents of kubeconfig
-          command:
+          ansible.builtin.command:
             cat .kube/config
           register: _result
+          changed_when: _result.rc == 0
 
         - name: Write local kubeconfig
-          copy:
+          ansible.builtin.copy:
             content: |
               {{ _result.stdout }}
             dest: "{{ cluster_dir + '/kubeconfig' }}"
@@ -113,7 +116,7 @@
           delegate_to: 'cluster-facts'
 
     - name: Update cluster_status.json with status of deployed
-      copy:
+      ansible.builtin.copy:
         content: |
           {
               "status": "deployed"

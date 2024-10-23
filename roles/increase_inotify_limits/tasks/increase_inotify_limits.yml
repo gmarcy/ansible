@@ -17,6 +17,7 @@
   changed_when: false
 
 - name: Create marker file
-  file:
+  ansible.builtin.file:
     path: ~/.ansible/inotify_limits_increased
     state: touch
+    mode: '0644'

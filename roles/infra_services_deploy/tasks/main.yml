@@ -1,7 +1,7 @@
 ---
 
 - name: Install buildah if required
-  package:
+  ansible.builtin.package:
     name:
     - buildah
     - podman
@@ -9,21 +9,21 @@
     state: present
 
 - name: Allow services to linger
-  include_role:
+  ansible.builtin.include_role:
     name: 'services_enable_linger'
 
 - name: Install infra host credentials
-  include_role:
+  ansible.builtin.include_role:
     name: 'infra_install_creds'
 
 - name: Install container registry on infra host
-  include_role:
+  ansible.builtin.include_role:
     name: 'infra_install_registry'
 
 - name: Install a registry proxy on infra host
-  include_role:
+  ansible.builtin.include_role:
     name: 'infra_install_registry_proxy'
 
 - name: Install haproxy on infra host
-  include_role:
+  ansible.builtin.include_role:
     name: 'infra_install_haproxy'

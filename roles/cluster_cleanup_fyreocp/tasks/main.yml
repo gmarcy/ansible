@@ -26,11 +26,11 @@
     msg: "{{ 'The inventory_hostname for this role was \"' + inventory_hostname + '\" and not \"fyreocp-provisioner\"' }}"
 
 - name: Set ssh_keypair to empty
-  set_fact:
+  ansible.builtin.set_fact:
     ssh_keypair: {}
 
 - name: Search for a keypair to use
-  set_fact:
+  ansible.builtin.set_fact:
     ssh_keypair:
       ssh_private_key: "{{ prvkey | b64encode }}"
       ssh_public_key: "{{ pubkey | b64encode }}"
@@ -45,15 +45,15 @@
   when: ssh_keypair.keys() | length == 0 and pubkey != None and prvkey != None
 
 - name: Set vars_static to default ssh keypair, defaults from host_vars and overrides from inventory
-  set_fact:
+  ansible.builtin.set_fact:
     vars_static: "{{ ssh_keypair | combine(vars_host) | combine(vars_inventory | default({})) }}"
 
 - name: Set vars_env to empty
-  set_fact:
+  ansible.builtin.set_fact:
     vars_env: {}
 
 - name: Add values to vars_env for all vars_static keys
-  set_fact:
+  ansible.builtin.set_fact:
     vars_env: "{{ vars_env | combine({key: value}) }}"
   no_log: "{{ noLog }}"
   loop: "{{ matching_vars }}"
@@ -67,11 +67,11 @@
   when: value | string | length > 0
 
 - name: Set vars_cli to empty
-  set_fact:
+  ansible.builtin.set_fact:
     vars_cli: {}
 
 - name: Add values to vars_cli for all vars_static keys
-  set_fact:
+  ansible.builtin.set_fact:
     vars_cli: "{{ vars_cli | combine({key: value}) }}"
   no_log: "{{ noLog }}"
   loop: "{{ matching_vars }}"
@@ -85,7 +85,7 @@
   when: value | string | length > 0
 
 - name: Copy all variables into options map
-  set_fact:
+  ansible.builtin.set_fact:
     options: "{{ vars_static | combine(vars_env | combine(vars_cli)) }}"
   no_log: "{{ noLog }}"
 
@@ -130,21 +130,23 @@
   until: _result_cluster_status.status != -1 and (_result_cluster_status.status == 400 or _result_cluster_status.json.deployed_status in ['configuring', 'deleting', 'deployed'])
 
 - name: Set cluster_status fact
-  set_fact:
+  ansible.builtin.set_fact:
     deployed_status: "{{ _result_cluster_status.json.deployed_status }}"
 
 - when: deployed_status == 'deleting'
+  name: Wait for clusters being deleted
   block:
 
     - when: _result_cluster_status.json.status.request.request_id is defined
       name: Extract the request id if there is one
-      set_fact:
+      ansible.builtin.set_fact:
         request_id: "{{ _result_cluster_status.json.status.request.request_id }}"
 
     - when: request_id is not defined
+      name: Wait for name to become available
       block:
 
-        - name: Wait until name available check returns success or that we need to wait for the name to become available again 
+        - name: Wait until name available check returns success or that we need to wait for the name to become available again
           ansible.builtin.uri:
             url: "{{ ocpplus_check_hostname }}"
             method: "GET"
@@ -162,16 +164,17 @@
             (_result_check_hostname.json.status == 'success' or _result_check_hostname.json.seconds is defined)
 
 - when: deployed_status == 'configuring'
+  name: Wait for clusters being configured
   block:
 
     - when: _result_cluster_status.json.status.request.request_id is defined
       name: Extract the request id if there is one
-      set_fact:
+      ansible.builtin.set_fact:
         request_id: "{{ _result_cluster_status.json.status.request.request_id }}"
 
     - when: request_id is defined
       name: Wait until the request we are waiting for completes
-      uri:
+      ansible.builtin.uri:
         url: "{{ 'https://ocpapi.svl.ibm.com/v1/ocp/request/' + (request_id | string) }}"
         method: GET
         user: "{{ _secrets.fyre_user }}"
@@ -201,10 +204,11 @@
       until: _result_cluster_status.status != -1 and (_result_cluster_status.status == 400 or _result_cluster_status.json.deployed_status in ['deployed'])
 
     - name: Set cluster_status fact
-      set_fact:
+      ansible.builtin.set_fact:
         deployed_status: "{{ _result_cluster_status.json.deployed_status }}"
 
 - when: deployed_status == 'deployed'
+  name: Wait for clusters being deployed
   block:
 
     - name: Delete Fyre OCP stack
@@ -220,12 +224,12 @@
       failed_when: _fyre_result.status | default(404) not in [-1,200,400]
 
     - name: Set request_id fact
-      set_fact:
+      ansible.builtin.set_fact:
         request_id: "{{ _fyre_result.json.request_id }}"
 
 - when: request_id is defined
   name: Wait until the request we are waiting for completes
-  uri:
+  ansible.builtin.uri:
     url: "{{ 'https://ocpapi.svl.ibm.com/v1/ocp/request/' + (request_id | string) }}"
     method: GET
     user: "{{ _secrets.fyre_user }}"

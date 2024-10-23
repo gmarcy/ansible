@@ -1,7 +1,7 @@
 ---
 
 - name: Set vars_static to defaults from host_vars and overrides from inventory
-  set_fact:
+  ansible.builtin.set_fact:
     _vars_static: "{{ hostvars[inventory_hostname].vars_host | combine(hostvars[inventory_hostname].vars_inventory | default({})) }}"
 
 - name: Gather facts
@@ -18,11 +18,11 @@
     ansible_facts: {}
 
 - name: Set vars_env to empty
-  set_fact:
+  ansible.builtin.set_fact:
     _vars_env: {}
 
 - name: Add values to vars_env for all vars_static keys
-  set_fact:
+  ansible.builtin.set_fact:
     _vars_env: "{{ _vars_env | combine({key: value}) }}"
   no_log: "{{ noLog }}"
   loop: "{{ matching_vars }}"
@@ -38,11 +38,11 @@
   when: value | string | length > 0
 
 - name: Set vars_cli to empty
-  set_fact:
+  ansible.builtin.set_fact:
     _vars_cli: {}
 
 - name: Add values to vars_cli for all vars_static keys
-  set_fact:
+  ansible.builtin.set_fact:
     _vars_cli: "{{ _vars_cli | combine({key: value}) }}"
   no_log: "{{ noLog }}"
   loop: "{{ matching_vars }}"
@@ -57,7 +57,7 @@
   when: value | string | length > 0
 
 - name: Copy all variables into options map
-  set_fact:
+  ansible.builtin.set_fact:
     options: "{{ _vars_static | combine(_vars_env | combine(_vars_cli)) }}"
   vars:
     local_home: "{{ ansible_user_dir | default(hostvars['localhost-facts'].ansible_user_dir) }}"
@@ -68,6 +68,7 @@
   block:
 
     - when: hostvars['playbook-facts'].container_run | bool
+      name: Create ssh keypairs when running in a container
       block:
 
         - name: Create parent folder for ssh_keypair_path if needed
@@ -104,7 +105,7 @@
         ssh_keypair_secret: "{{ hostvars['localhost-facts'].ssh_keypair_secret }}"
 
     - name: Update options map with ssh_keypair
-      set_fact:
+      ansible.builtin.set_fact:
         options: "{{ options | combine(ssh_keypair) }}"
       vars:
         ssh_keypair_path: "{{ hostvars['localhost-facts'].ssh_keypair_path }}"
@@ -117,7 +118,7 @@
       no_log: "{{ noLog }}"
 
 - name: Clear register results and temporary facts
-  set_fact:
+  ansible.builtin.set_fact:
     _vars_cli: {}
     _vars_env: {}
     _vars_static: {}

@@ -41,7 +41,8 @@
   roles:
   - role: gmarcy.ansible.cluster_load_facts
 
-- import_playbook: gmarcy.ansible.gather_cluster_facts_common
+- name: Gather common cluster facts
+  import_playbook: gmarcy.ansible.gather_cluster_facts_common
 
 - name: Check if requested to stop here
   hosts: playbook-facts
