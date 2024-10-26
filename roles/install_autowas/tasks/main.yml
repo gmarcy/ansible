@@ -40,7 +40,7 @@
         enabled: false
         state: stopped
       register: _result
-      no_log: true
+      no_log: "{{ noLog }}"
 
     - name: Print result from systemd
       ansible.builtin.debug:
@@ -61,10 +61,18 @@
       ansible.builtin.pip:
         name:
           - pip
+          - setuptools
           - wheel
-          - paramiko
           - future
           - six
+        state: latest
+        extra_args: --user
+      register: _result
+
+    - name: Install latest python modules with pip
+      ansible.builtin.pip:
+        name:
+          - paramiko
         state: latest
         extra_args: --user
       register: _result
@@ -97,7 +105,7 @@
       ansible.builtin.find:
         paths: '/opt/autowas/versionInfo'
       register: _result
-      no_log: true
+      no_log: "{{ noLog }}"
 
     - name: Print out the file names
       ansible.builtin.debug:
@@ -152,7 +160,7 @@
         gsa_username: "{{ lookup(gsa_username_secret.module, gsa_username_secret.param) | trim }}"
         gsa_password: "{{ lookup(gsa_password_secret.module, gsa_password_secret.param) | trim }}"
       register: _result
-      no_log: true
+      no_log: "{{ noLog }}"
 
     - name: Print result of previous task
       ansible.builtin.debug:
@@ -174,7 +182,7 @@
         name: chronyd
         state: restarted
       register: _result
-      no_log: true
+      no_log: "{{ noLog }}"
 
     - name: Print result from systemd
       ansible.builtin.debug:
@@ -192,19 +200,6 @@
     state: present
   register: _result
 
-- name: Install 32-bit packages for 8.5.5.x
-  ansible.builtin.package:
-    name:
-      - glibc.i686
-      - gtk2.i686
-      - libnsl.i686
-      - libxcrypt-compat.i686
-      - libXtst.i686
-      - libXft.i686
-      - libXtst.i686
-    state: present
-  register: _result
-
 - when: inventory_hostname == (groups['all_nodes'] | first)
   name: Tasks which are only performed on the first VM
   block:
@@ -215,38 +210,19 @@
         state: directory
         mode: '0755'
 
-    - name: Download the default_v9_latest_2node.cfg.j2 template source
-      ansible.builtin.get_url:
-        url: 'http://rtpgsa.ibm.com/gsa/rtpgsa/home/g/m/gmarcy/web/shared/autowas/default_v9_latest_2node.cfg.j2'
-        dest: './default_v9_latest_2node.cfg.j2'
-        force_basic_auth: true
-        url_username: "{{ gsa_username }}"
-        url_password: "{{ gsa_password }}"
-        validate_certs: false
-        mode: '0644'
-      vars:
-        secrets: "{{ hostvars['playbook-secrets'].secrets }}"
-        gsa_username_secret: "{{ secrets.gsa_username }}"
-        gsa_password_secret: "{{ secrets.gsa_password }}"
-        gsa_username: "{{ lookup(gsa_username_secret.module, gsa_username_secret.param) | trim }}"
-        gsa_password: "{{ lookup(gsa_password_secret.module, gsa_password_secret.param) | trim }}"
-      register: _result
-      changed_when: false
-      delegate_to: 'playbook-facts'
-      delegate_facts: true
-
     - name: Create default_v9_latest_2node.cfg from template
       ansible.builtin.template:
-        src: './default_v9_latest_2node.cfg.j2'
+        src: 'default_v9_latest_2node.cfg.j2'
         dest: '/opt/scripts/default_v9_latest_2node.cfg'
         mode: '0644'
-
-    - name: Remove the default_v9_latest_2node.cfg.j2 template
-      ansible.builtin.file:
-        path: './default_v9_latest_2node.cfg.j2'
-        state: absent
-      delegate_to: 'playbook-facts'
-      delegate_facts: true
+      vars:
+        primary_server_fqdn: "{{ hostvars[groups['all_nodes'][0]].fqdn }}"
+        secondary_server_fqdn: "{{ hostvars[groups['all_nodes'][1]].fqdn }}"
+        secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+        autowas_ldap_password_secret: "{{ secrets.autowas_ldap_password }}"
+        autowas_ihs_password_secret: "{{ secrets.autowas_ihs_password }}"
+        autowas_ldap_password: "{{ lookup(autowas_ldap_password_secret.module, autowas_ldap_password_secret.param) | trim }}"
+        autowas_ihs_password: "{{ lookup(autowas_ihs_password_secret.module, autowas_ihs_password_secret.param) | trim }}"
 
     - name: Install tWAS server
       ansible.builtin.shell:

@@ -1,0 +1,36 @@
+---
+
+- name: Create sandbox-helper directory
+  ansible.builtin.file:
+    path: "{{ user_home + '/sandbox-helper' }}"
+    state: directory
+    mode: '0755'
+  register: _result
+
+- name: Clone the sandbox-helper repo
+  ansible.builtin.git:
+    repo: 'git@github.ibm.com:WASL3/sandbox-helper.git'
+    dest: "{{ user_home + '/sandbox-helper' }}"
+    version: 'master'
+    clone: "{{ _result.changed }}"
+    force: "{{ not _result.changed }}"
+    accept_newhostkey: true
+    key_file: "{{ ssh_keypair_path }}"
+  vars:
+    sandbox_ssh_prefix: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_prefix }}"
+    ssh_keypair_type: "{{ hostvars['localhost-facts'].options.ssh_keytype }}"
+    ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + ssh_keypair_type }}"
+
+- name: Clone the HEAD
+  ansible.builtin.git:
+    repo: 'git@github.ibm.com:WASL3/sandbox-helper.git'
+    dest: "{{ user_home + '/sandbox-helper' }}"
+    version: 'HEAD'
+    clone: "{{ _result.changed }}"
+    force: "{{ not _result.changed }}"
+    accept_newhostkey: true
+    key_file: "{{ ssh_keypair_path }}"
+  vars:
+    sandbox_ssh_prefix: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_prefix }}"
+    ssh_keypair_type: "{{ hostvars['localhost-facts'].options.ssh_keytype }}"
+    ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + ssh_keypair_type }}"

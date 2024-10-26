@@ -1,0 +1,17 @@
+---
+
+- name: Place GSA creds into ~/user.build.properties
+  ansible.builtin.template:
+    src: 'user.build.properties.j2'
+    dest: "{{ user_home + '/user.build.properties' }}"
+    mode: '0600'
+  vars:
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    gsa_username_secret: "{{ secrets.gsa_username }}"
+    gsa_password_secret: "{{ secrets.gsa_password }}"
+    gsa_username: "{{ lookup(gsa_username_secret.module, gsa_username_secret.param) | trim }}"
+    gsa_password: "{{ lookup(gsa_password_secret.module, gsa_password_secret.param) | trim }}"
+    fe_ftp_userid: "{{ gsa_username }}"
+    fe_ftp_password: "{{ gsa_password }}"
+    prereq_ftp_userid: "{{ gsa_username }}"
+    prereq_ftp_password: "{{ gsa_password }}"

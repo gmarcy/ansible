@@ -8,12 +8,14 @@
     ansible_connection: ssh
     ansible_host: "{{ item.node }}"
     ansible_ssh_extra_args: "{{ '-F ' + _ssh_paths.config }}"
-    ansible_ssh_user: "{{ options.fyre_remote_user }}"
+    ansible_ssh_user: "{{ remote_user }}"
     fqdn: "{{ item.node + '.' + fyre_cluster_domain }}"
     privateip: "{{ item.privateip }}"
     publicip: "{{ item.publicip }}"
     short_hostname: "{{ item.node }}"
   loop: "{{ _cluster_details_json }}"
+  vars:
+    remote_user: "{{ hostvars['playbook-facts'].options.remote_user }}"
   changed_when: false
 
 - name: Wait until we can resolve all node hostnames using DNS
