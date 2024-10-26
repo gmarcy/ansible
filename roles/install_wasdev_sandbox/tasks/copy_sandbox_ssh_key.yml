@@ -1,0 +1,29 @@
+---
+
+- name: Copy ssh key secret into ssh_keypair_path
+  ansible.builtin.copy:
+    content: |
+      {{ ssh_keypair_key }}
+    dest: "{{ ssh_keypair_path }}"
+    mode: '0600'
+  vars:
+    sandbox_ssh_key: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_key }}"
+    sandbox_ssh_prefix: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_prefix }}"
+    ssh_keypair_type: "{{ hostvars['localhost-facts'].options.ssh_keytype }}"
+    ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + ssh_keypair_type }}"
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    ssh_keypair_key_secret: "{{ secrets[sandbox_ssh_key] }}"
+    ssh_keypair_key: "{{ lookup(ssh_keypair_key_secret.module, ssh_keypair_key_secret.param) | trim }}"
+  no_log: false
+  changed_when: false
+
+- name: Generate a public key for the private key
+  community.crypto.openssh_keypair:
+    path: "{{ ssh_keypair_path }}"
+    type: "{{ ssh_keypair_type }}"
+    regenerate: 'never'
+  vars:
+    sandbox_ssh_prefix: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_prefix }}"
+    ssh_keypair_type: "{{ hostvars['localhost-facts'].options.ssh_keytype }}"
+    ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + ssh_keypair_type }}"
+  register: _result

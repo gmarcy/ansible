@@ -1,0 +1,34 @@
+---
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: install_sandbox
+  roles:
+  - role: gmarcy.ansible.check_stop_before
+    task_to_check: task-install-sandbox
+
+- name: "Run any sandbox_prepare_roles when requested"
+  hosts: all_nodes
+  gather_facts: false
+  tags: install_sandbox
+  roles:
+  - role: gmarcy.ansible.loop_over_roles
+    role_loop: "{{ hostvars['sandbox-facts'].sandbox_prepare_roles or omit }}"
+
+- name: Install tWAS development sandbox
+  hosts: all_nodes
+  gather_facts: false
+  tags: install_sandbox
+  roles:
+  - role: gmarcy.ansible.install_wasdev_sandbox
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: install_sandbox
+  roles:
+  - role: gmarcy.ansible.check_stop_after
+    task_to_check: task-install-sandbox

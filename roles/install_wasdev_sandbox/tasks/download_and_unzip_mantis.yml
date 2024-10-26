@@ -1,0 +1,40 @@
+---
+
+- name: Download the archive
+  ansible.builtin.get_url:
+    url: "{{ 'https://rtpgsa.ibm.com/projects/w/was.build/botp/' + release + '/' + test_or_daily + '/' + level + '/linux/zipper/mantis.zip' }}"
+    dest: "{{ wasbld_folder + '/' }}"
+    force_basic_auth: true
+    url_username: "{{ gsa_username }}"
+    url_password: "{{ gsa_password }}"
+    validate_certs: false
+    mode: '0644'
+  vars:
+    was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
+    was_level: "{{ hostvars['sandbox-facts'].options.was_level }}"
+    release_level: "{{ was_release + '-' + was_level }}"
+    use_newer_mantis: "{{ release_level is match('(WAS[678].\\.|WAS855.*cf2[01]|WAS855.*cf1|gm|WAS90.*cf|WAS90.*f50|WAS90.*f51[01])') }}"
+    release: "{{ 'WAS90.IM' if use_newer_mantis else was_release }}"
+    level: "{{ 'f5122219.04.linux' if use_newer_mantis else was_level }}"
+    test_or_daily: "{{ hostvars['sandbox-facts'].options.test_or_daily | default('test') }}"
+    secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+    gsa_username_secret: "{{ secrets.gsa_username }}"
+    gsa_password_secret: "{{ secrets.gsa_password }}"
+    gsa_username: "{{ lookup(gsa_username_secret.module, gsa_username_secret.param) | trim }}"
+    gsa_password: "{{ lookup(gsa_password_secret.module, gsa_password_secret.param) | trim }}"
+  register: _result
+
+- name: Extract the mantis files
+  ansible.builtin.unarchive:
+    src: "{{ wasbld_folder + '/mantis.zip' }}"
+    dest: "{{ wasbld_folder }}"
+    extra_opts: ['-q']
+    remote_src: true
+  no_log: true
+  register: _result
+
+- name: Print out the result
+  ansible.builtin.debug: msg="{{ _result | combine(empty_diff) }}"
+  vars:
+    empty_diff:
+      diff: {}

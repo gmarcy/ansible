@@ -1,0 +1,10 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+vars_host:
+  sandbox_ssh_key: 'sandbox_ssh_key'
+  sandbox_ssh_prefix: 'sandbox_'
+  sandbox_ssh_user: ''
