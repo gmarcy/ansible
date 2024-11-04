@@ -4,11 +4,11 @@
   ansible.builtin.include_vars:
     name: _loaded_secrets
     dir: "{{ secrets_vars_dir }}"
+    depth: 1
     ignore_unknown_extensions: true
   vars:
     local_home: "{{ hostvars['localhost-facts'].local_home }}"
-    container_secrets_vars_dir: "{{ local_home + '/ansible/secrets' }}"
-    secrets_vars_dir: "{{ container_secrets_vars_dir if (hostvars['playbook-facts'].container_run) else options.secrets_vars_dir }}"
+    secrets_vars_dir: "{{ options.container_secrets_vars_dir if (hostvars['playbook-facts'].container_run) else options.secrets_vars_dir }}"
 
 - name: Set secrets fact
   ansible.builtin.set_fact:
