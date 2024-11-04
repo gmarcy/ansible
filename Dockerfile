@@ -30,7 +30,7 @@ RUN set -x && \
 
 LABEL ansible-automation.description="Ansible automation I have gathered in my travels over the years combined into a layout I have found to be useful."
 LABEL ansible-automation.maintainer="Glenn Marcy <ansible-automation@gmarcy.com>"
-LABEL ansible-autimation.thanks="https://github.com/IBM/community-automation, https://github.com/Kubeinit/kubeinit, and many others for the pearls of wisdom you have shown me."
+LABEL ansible-automation.thanks="https://github.com/IBM/community-automation, https://github.com/Kubeinit/kubeinit, and many others for the pearls of wisdom you have shown me."
 
 ENTRYPOINT ["ansible-playbook", "-e", "running_in_container=true"]
 

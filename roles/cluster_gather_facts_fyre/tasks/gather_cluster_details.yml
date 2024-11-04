@@ -25,7 +25,9 @@
       prvkey: "{{ cluster_ssh_dir + '/' + ssh_keypair_path_prefix + 'id_' + ssh_keytype + '.' + cluster_name }}"
       pubkey: "{{ cluster_dir + '/.ssh/' + ssh_keypair_path_prefix + 'id_' + ssh_keytype + '.pub.' + cluster_name }}"
   vars:
-    cluster_ssh_dir: "{{ '~/.kube/clusters/' + cluster_name + '/.ssh' }}"
+    clusters_basedir: "{{ hostvars['cluster-facts'].clusters_basedir }}"
+    clusters_ssh_basedir: "{{ hostvars['cluster-facts'].options.clusters_ssh_basedir if hostvars['cluster-facts'].options.clusters_ssh_basedir is defined else clusters_basedir }}"
+    cluster_ssh_dir: "{{ clusters_ssh_basedir + '/' + cluster_name + '/.ssh' }}"
 
 - name: Set distro_include_tasks fact
   ansible.builtin.set_fact:

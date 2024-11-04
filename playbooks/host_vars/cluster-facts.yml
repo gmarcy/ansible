@@ -9,6 +9,7 @@ vars_host:
   cluster_domain: 'home.arpa'
   cluster_name: ''
   cluster_provisioner: ''
+  clusters_basedir: ''
   network_cidr: ''
   http_proxy: ''
   cluster_host_names: []

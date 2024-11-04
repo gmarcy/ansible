@@ -6,10 +6,11 @@
 
 - name: Set facts based on local_home
   ansible.builtin.set_fact:
-    clusters_basedir: "{{ local_home + '/.kube/clusters' }}"
+    clusters_basedir: "{{ options.clusters_basedir if clusters_basedir_option_set else (local_home + '/.kube/clusters') }}"
     clusters_shared_kubeconfig_path: "{{ local_home + '/.kube/config' }}"
   vars:
     local_home: "{{ hostvars['localhost-facts'].local_home }}"
+    clusters_basedir_option_set: "{{ options.clusters_basedir | default('') | length > 0 }}"
 
 - when: options.cluster_name is defined
   name: Set facts based on cluster name
