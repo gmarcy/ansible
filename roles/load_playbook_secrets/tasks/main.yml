@@ -9,6 +9,7 @@
   vars:
     local_home: "{{ hostvars['localhost-facts'].local_home }}"
     secrets_vars_dir: "{{ options.container_secrets_vars_dir if (hostvars['playbook-facts'].container_run) else options.secrets_vars_dir }}"
+  no_log: "{{ noLog }}"
 
 - name: Set secrets fact
   ansible.builtin.set_fact:
@@ -16,6 +17,7 @@
   vars:
     local_home: "{{ hostvars['localhost-facts'].local_home }}"
     secrets_dir: "{{ options.container_secrets_dir if (hostvars['playbook-facts'].container_run) else options.secrets_dir }}"
+  no_log: "{{ noLog }}"
 
 - name: Clear temporary vars
   ansible.builtin.set_fact:
