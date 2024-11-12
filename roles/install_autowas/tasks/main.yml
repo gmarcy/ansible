@@ -223,21 +223,3 @@
         autowas_ihs_password_secret: "{{ secrets.autowas_ihs_password }}"
         autowas_ldap_password: "{{ lookup(autowas_ldap_password_secret.module, autowas_ldap_password_secret.param) | trim }}"
         autowas_ihs_password: "{{ lookup(autowas_ihs_password_secret.module, autowas_ihs_password_secret.param) | trim }}"
-
-    - name: Install tWAS server
-      ansible.builtin.shell:
-        chdir: /opt/scripts
-        cmd: source /opt/autowas/bin/AutoWASEnv.sh && cfg -cfg default_v9_latest_2node.cfg install && touch /opt/scripts/.install_completed
-        creates: /opt/scripts/.install_completed
-        executable: /bin/bash
-      register: _result
-      changed_when: _result.start != None
-
-    - name: Create tWAS server topology
-      ansible.builtin.shell:
-        chdir: /opt/scripts
-        cmd: source /opt/autowas/bin/AutoWASEnv.sh && cfg -cfg default_v9_latest_2node.cfg createTopology && touch /opt/scripts/.createTopology_completed
-        creates: /opt/scripts/.createTopology_completed
-        executable: /bin/bash
-      register: _result
-      changed_when: _result.start != None

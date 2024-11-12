@@ -4,23 +4,23 @@
   hosts: playbook-facts
   become: false
   gather_facts: false
-  tags: uninstall_autowas
+  tags: uninstall_twas
   roles:
   - role: gmarcy.ansible.check_stop_before
-    task_to_check: task-uninstall-autowas
+    task_to_check: task-uninstall-twas
 
-- name: Uninstall AutoWAS
+- name: Uninstall tWAS using AutoWAS
   hosts: all_nodes
   gather_facts: false
-  tags: uninstall_autowas
+  tags: uninstall_twas
   roles:
-  - role: gmarcy.ansible.uninstall_autowas
+  - role: gmarcy.ansible.uninstall_twas
 
 - name: Check if requested to stop here
   hosts: playbook-facts
   become: false
   gather_facts: false
-  tags: uninstall_autowas
+  tags: uninstall_twas
   roles:
   - role: gmarcy.ansible.check_stop_after
-    task_to_check: task-uninstall-autowas
+    task_to_check: task-uninstall-twas

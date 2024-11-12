@@ -1,0 +1,26 @@
+---
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: install_twas
+  roles:
+  - role: gmarcy.ansible.check_stop_before
+    task_to_check: task-install-twas
+
+- name: Install tWAS using AutoWAS
+  hosts: all_nodes
+  gather_facts: false
+  tags: install_twas
+  roles:
+  - role: gmarcy.ansible.install_twas
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: install_twas
+  roles:
+  - role: gmarcy.ansible.check_stop_after
+    task_to_check: task-install-twas
