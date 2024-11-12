@@ -7,7 +7,8 @@
     - name: Uninstall tWAS server
       ansible.builtin.shell:
         chdir: /opt/scripts
-        cmd: source /opt/autowas/bin/AutoWASEnv.sh && cfg -cfg default_v9_latest_2node.cfg force_uninstall
+        cmd: source /opt/autowas/bin/AutoWASEnv.sh && cfg -cfg default_v9_latest_2node.cfg force_uninstall && rm -f /opt/scripts/.install_completed /opt/scripts/.createTopology_completed
         executable: /bin/bash
+      removes: /opt/scripts/.install_completed
       register: _result
       changed_when: _result.start != None
