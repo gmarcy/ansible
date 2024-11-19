@@ -64,6 +64,7 @@
           - setuptools
           - wheel
           - future
+          - packaging
           - six
         state: latest
         extra_args: --user
@@ -212,10 +213,11 @@
 
     - name: Create default_v9_latest_2node.cfg from template
       ansible.builtin.template:
-        src: '/opt/scripts/default_v9_latest_2node.cfg.j2'
+        src: "{{ templates_basedir + '/default_v9_latest_2node.cfg.j2' }}"
         dest: '/opt/scripts/default_v9_latest_2node.cfg'
         mode: '0644'
       vars:
+        templates_basedir: "{{ hostvars['cluster-facts'].options.templates_basedir }}"
         primary_server_fqdn: "{{ hostvars[groups['all_nodes'][0]].fqdn }}"
         secondary_server_fqdn: "{{ hostvars[groups['all_nodes'][1]].fqdn }}"
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
