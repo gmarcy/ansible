@@ -1,5 +1,21 @@
 ---
 
+- name: Update limits for core and nofile
+  community.general.pam_limits:
+    domain: '*'
+    limit_type: "{{ limit.type }}"
+    limit_item: "{{ limit.item }}"
+    value: "{{ limit.value }}"
+  loop:
+  - type: '-'
+    item: 'nofile'
+    value: '64000'
+  - type: '-'
+    item: 'core'
+    value: 'unlimited'
+  loop_control:
+    loop_var: limit
+
 - when: inventory_hostname == (groups['all_nodes'] | first)
   name: Tasks which are only performed on the first VM
   block:
