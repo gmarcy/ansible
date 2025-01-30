@@ -26,6 +26,6 @@
     autowas_basedir: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
     autowas_config_dir: "{{ hostvars['cluster-facts'].options.autowas_config_dir }}"
     autowas_config_file: "{{ hostvars['cluster-facts'].options.autowas_config_file }}"
-    autowas_env_script: "{{ autowas_basedir + 'bin/AutoWASEnv.sh' }}"
+    autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
     install_marker: "{{ autowas_config_dir + '/.install_completed' }}"
     topology_marker: "{{ autowas_config_dir + '/.createTopology_completed' }}"
