@@ -136,7 +136,7 @@
 
         - name: Copy template for config.user
           ansible.builtin.copy:
-            src: "{{ hostvars['cluster-facts'].options.autowas_basedir + '/etc/DO_NOT_EDIT_config.user'
+            src: "{{ hostvars['cluster-facts'].options.autowas_basedir + '/etc/DO_NOT_EDIT_config.user' }}"
             dest: "{{ user_home + '/autowas/etc/config.user' }}"
             remote_src: true
             mode: '0600'
