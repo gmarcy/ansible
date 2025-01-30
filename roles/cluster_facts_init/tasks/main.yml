@@ -25,7 +25,7 @@
   name: Load contents of the shared kubeconfig
   ansible.builtin.set_fact:
     shared_kubeconfig: "{{ lookup('file', clusters_shared_kubeconfig_path, split_lines=false) | from_yaml }}"
-  no_log: "{{ true or noLog }}"
+  no_log: "{{ noLog }}"
 
 - name: Clear temp fact
   ansible.builtin.set_fact:

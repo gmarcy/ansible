@@ -20,3 +20,8 @@ vars_host:
   openshift_distro: ''
   openshift_version: ''
   load_ssh_keypair: true
+  templates_basedir: '/home/runner/.kube/clusters'
+  autowas_archive_url: 'http://rtpgsa.ibm.com/gsa/rtpgsa/projects/m/moonstone/drivers/releases/latest.tar.gz'
+  autowas_basedir: '/opt/autowas'
+  autowas_config_dir: '/opt/scripts'
+  autowas_config_file: 'default_v9_latest_2node.cfg'

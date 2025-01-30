@@ -51,7 +51,7 @@
     validate_certs: false
     force_basic_auth: "{{ options.fyre_force_basic_auth }}"
   register: _result_show_requests
-  no_log: true
+  no_log: "{{ noLog }}"
   changed_when: false
 
 - when: request_ids | length > 0
