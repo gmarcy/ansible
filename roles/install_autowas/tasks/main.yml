@@ -1,21 +1,5 @@
 ---
 
-- name: Update limits for core and nofile
-  community.general.pam_limits:
-    domain: '*'
-    limit_type: "{{ limit.type }}"
-    limit_item: "{{ limit.item }}"
-    value: "{{ limit.value }}"
-  loop:
-  - type: '-'
-    item: 'nofile'
-    value: '64000'
-  - type: '-'
-    item: 'core'
-    value: 'unlimited'
-  loop_control:
-    loop_var: limit
-
 - when: inventory_hostname == (groups['all_nodes'] | first)
   name: Tasks which are only performed on the first VM
   block:
@@ -94,33 +78,33 @@
         extra_args: --user
       register: _result
 
-    - name: Check if /opt/autowas folder exists
+    - name: Check if autowas_basedir folder exists
       ansible.builtin.stat:
-        path: '/opt/autowas'
+        path: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
       register: _result_stat
 
     - when: not _result_stat.stat.exists
       name: Download autowas
       block:
 
-        - name: Create the autowas folder
+        - name: Create the autowas_basedir folder
           ansible.builtin.file:
-            path: '/opt/autowas'
+            path: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
             state: directory
             mode: '0755'
           register: _result
 
-        - name: Download the archive and extract into /opt/autowas folder
+        - name: Download the archive and extract into autowas_basedir folder
           ansible.builtin.unarchive:
-            src: 'http://rtpgsa.ibm.com/gsa/rtpgsa/projects/m/moonstone/drivers/releases/latest.tar.gz'
-            dest: '/opt/autowas/'
+            src: "{{ hostvars['cluster-facts'].options.autowas_archive_url }}"
+            dest: "{{ hostvars['cluster-facts'].options.autowas_basedir + '/' }}"
             remote_src: true
             validate_certs: false
           register: _result
 
     - name: List contents of versionInfo folder
       ansible.builtin.find:
-        paths: '/opt/autowas/versionInfo'
+        paths: "{{ hostvars['cluster-facts'].options.autowas_basedir + '/versionInfo' }}"
       register: _result
       no_log: "{{ noLog }}"
 
@@ -131,7 +115,7 @@
     - name: Run the configure script
       ansible.builtin.command:
         cmd: './bin/configure'
-        chdir: '/opt/autowas'
+        chdir: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
       register: _result
       changed_when: false
 
@@ -152,7 +136,7 @@
 
         - name: Copy template for config.user
           ansible.builtin.copy:
-            src: '/opt/autowas/etc/DO_NOT_EDIT_config.user'
+            src: "{{ hostvars['cluster-facts'].options.autowas_basedir + '/etc/DO_NOT_EDIT_config.user'
             dest: "{{ user_home + '/autowas/etc/config.user' }}"
             remote_src: true
             mode: '0600'
@@ -221,19 +205,21 @@
   name: Tasks which are only performed on the first VM
   block:
 
-    - name: Create /opt/scripts folder
+    - name: Create autowas_config_dir folder
       ansible.builtin.file:
-        path: '/opt/scripts/'
+        path: "{{ hostvars['cluster-facts'].options.autowas_config_dir }}"
         state: directory
         mode: '0755'
 
-    - name: Create default_v9_latest_2node.cfg from template
+    - name: Create autowas_config_file from template
       ansible.builtin.template:
-        src: "{{ templates_basedir + '/default_v9_latest_2node.cfg.j2' }}"
-        dest: '/opt/scripts/default_v9_latest_2node.cfg'
+        src: "{{ templates_basedir + '/' + autowas_config_file + '.j2' }}"
+        dest: "{{ autowas_config_dir + '/' + autowas_config_file }}"
         mode: '0644'
       vars:
         templates_basedir: "{{ hostvars['cluster-facts'].options.templates_basedir }}"
+        autowas_config_dir: "{{ hostvars['cluster-facts'].options.autowas_config_dir }}"
+        autowas_config_file: "{{ hostvars['cluster-facts'].options.autowas_config_file }}"
         primary_server_fqdn: "{{ hostvars[groups['all_nodes'][0]].fqdn }}"
         secondary_server_fqdn: "{{ hostvars[groups['all_nodes'][1]].fqdn }}"
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
