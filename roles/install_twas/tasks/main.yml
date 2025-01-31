@@ -43,6 +43,15 @@
       register: _result
       changed_when: _result.start != None
 
+    - name: Generate bootstrap config
+      ansible.builtin.shell:
+        chdir: "{{ autowas_config_dir }}"
+        cmd: source {{ autowas_env_script }} && cfg -cfg {{ autowas_config_file }} generateBootstrap && touch {{ bootstrap_marker }}
+        creates: "{{ bootstrap_marker }}"
+        executable: /bin/bash
+      register: _result
+      changed_when: _result.start != None
+
   vars:
     autowas_basedir: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
     autowas_config_dir: "{{ hostvars['cluster-facts'].options.autowas_config_dir }}"
@@ -50,3 +59,4 @@
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
     install_marker: "{{ autowas_config_dir + '/.install_completed' }}"
     topology_marker: "{{ autowas_config_dir + '/.createTopology_completed' }}"
+    bootstrap_marker: "{{ autowas_config_dir + '/.generateBootstrap_completed' }}"
