@@ -4,6 +4,27 @@
   name: Tasks which are only performed on the first VM
   block:
 
+    - name: Create autowas_config_dir folder
+      ansible.builtin.file:
+        path: "{{ autowas_config_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create autowas_config_file from template
+      ansible.builtin.template:
+        src: "{{ templates_basedir + '/' + autowas_config_file + '.j2' }}"
+        dest: "{{ autowas_config_dir + '/' + autowas_config_file }}"
+        mode: '0644'
+      vars:
+        templates_basedir: "{{ hostvars['cluster-facts'].options.templates_basedir }}"
+        primary_server_fqdn: "{{ hostvars[groups['all_nodes'][0]].fqdn }}"
+        secondary_server_fqdn: "{{ hostvars[groups['all_nodes'][1]].fqdn }}"
+        secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+        autowas_ldap_password_secret: "{{ secrets.autowas_ldap_password }}"
+        autowas_ihs_password_secret: "{{ secrets.autowas_ihs_password }}"
+        autowas_ldap_password: "{{ lookup(autowas_ldap_password_secret.module, autowas_ldap_password_secret.param) | trim }}"
+        autowas_ihs_password: "{{ lookup(autowas_ihs_password_secret.module, autowas_ihs_password_secret.param) | trim }}"
+
     - name: Install tWAS server
       ansible.builtin.shell:
         chdir: "{{ autowas_config_dir }}"
