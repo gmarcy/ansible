@@ -25,3 +25,5 @@ vars_host:
   autowas_basedir: '/opt/autowas'
   autowas_config_dir: '/opt/scripts'
   autowas_config_file: 'default_v9_latest_2node.cfg'
+  autowas_cfg_ssh_user: 'root'
+  autowas_cfg_install_path_basedir: '/opt'

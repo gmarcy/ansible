@@ -10,15 +10,17 @@
         state: directory
         mode: '0755'
 
-    - name: Create autowas_config_file from template
+    - name: Create default.cfg from template
       ansible.builtin.template:
         src: "{{ templates_basedir + '/' + autowas_config_file + '.j2' }}"
-        dest: "{{ autowas_config_dir + '/' + autowas_config_file }}"
+        dest: "{{ autowas_config_dir + '/default.cfg' }}"
         mode: '0644'
       vars:
         templates_basedir: "{{ hostvars['cluster-facts'].options.templates_basedir }}"
         primary_server_fqdn: "{{ hostvars[groups['all_nodes'][0]].fqdn }}"
         secondary_server_fqdn: "{{ hostvars[groups['all_nodes'][1]].fqdn }}"
+        autowas_cfg_ssh_user: "{{ hostvars['cluster-facts'].options.autowas_cfg_ssh_user }}"
+        autowas_cfg_install_path_basedir: "{{ hostvars['cluster-facts'].options.autowas_cfg_install_path_basedir }}"
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
         autowas_ldap_password_secret: "{{ secrets.autowas_ldap_password }}"
         autowas_ihs_password_secret: "{{ secrets.autowas_ihs_password }}"
@@ -28,7 +30,7 @@
     - name: Install tWAS server
       ansible.builtin.shell:
         chdir: "{{ autowas_config_dir }}"
-        cmd: source {{ autowas_env_script }} && cfg -cfg {{ autowas_config_file }} install && touch {{ install_marker }}
+        cmd: source {{ autowas_env_script }} && cfg install && touch {{ install_marker }}
         creates: "{{ install_marker }}"
         executable: /bin/bash
       register: _result
@@ -37,7 +39,7 @@
     - name: Create tWAS server topology
       ansible.builtin.shell:
         chdir: "{{ autowas_config_dir }}"
-        cmd: source {{ autowas_env_script }} && cfg -cfg {{ autowas_config_file }} createTopology && touch {{ topology_marker }}
+        cmd: source {{ autowas_env_script }} && cfg createTopology && touch {{ topology_marker }}
         creates: "{{ topology_marker }}"
         executable: /bin/bash
       register: _result
@@ -46,7 +48,7 @@
     - name: Generate bootstrap config
       ansible.builtin.shell:
         chdir: "{{ autowas_config_dir }}"
-        cmd: source {{ autowas_env_script }} && cfg -cfg {{ autowas_config_file }} generateBootstrap && touch {{ bootstrap_marker }}
+        cmd: source {{ autowas_env_script }} && cfg generateBootstrap && touch {{ bootstrap_marker }}
         creates: "{{ bootstrap_marker }}"
         executable: /bin/bash
       register: _result
