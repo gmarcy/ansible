@@ -7,7 +7,7 @@
     - name: Uninstall tWAS server
       ansible.builtin.shell:
         chdir: "{{ autowas_config_dir }}"
-        cmd: source {{ autowas_env_script }} && cfg -cfg {{ autowas_config_file }} force_uninstall && rm -f {{ install_marker }} {{ topology_marker }} {{ bootstrap_marker }}
+        cmd: source {{ autowas_env_script }} && cfg force_uninstall && rm -f {{ install_marker }} {{ topology_marker }} {{ bootstrap_marker }}
         executable: /bin/bash
         removes: "{{ install_marker }}"
       register: _result
