@@ -9,9 +9,27 @@
         chdir: "{{ autowas_config_dir }}"
         cmd: source {{ autowas_env_script }} && cfg force_uninstall && rm -f {{ install_marker }} {{ topology_marker }} {{ bootstrap_marker }}
         executable: /bin/bash
-        removes: "{{ install_marker }}"
       register: _result
       changed_when: _result.start != None
+
+    - name: Create the ~/.cache/autowas folder
+      ansible.builtin.file:
+        path: "{{ user_home + '/.cache/autowas' }}"
+        state: directory
+        mode: '0755'
+      register: _result
+
+    - name: Archive the contents of the autowas_config_dir
+      community.general.archive:
+        dest: "{{ user_home + '/.cache/autowas/saved-' + now(fmt='%Y-%m-%dT%H:%M:%S') + '.tar.gz' }}"
+        mode: '0644'
+        path: "{{ autowas_config_dir }}"
+
+    - name: Remove the autowas_config_dir folder
+      ansible.builtin.file:
+        path: "{{ autowas_config_dir }}"
+        state: absent
+      register: _result
 
   vars:
     autowas_basedir: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
@@ -21,3 +39,14 @@
     install_marker: "{{ autowas_config_dir + '/.install_completed' }}"
     topology_marker: "{{ autowas_config_dir + '/.createTopology_completed' }}"
     bootstrap_marker: "{{ autowas_config_dir + '/.generateBootstrap_completed' }}"
+
+- name: Remove other folders created by install_twas role
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ autowas_cfg_install_path_basedir + '/.ibm' }}"
+    - '/etc/.ibm'
+  register: _result
+  vars:
+    autowas_cfg_install_path_basedir: "{{ hostvars['cluster-facts'].options.autowas_cfg_install_path_basedir }}"
