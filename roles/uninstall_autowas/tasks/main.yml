@@ -4,14 +4,12 @@
   name: Tasks which are only performed on the first VM
   block:
 
-    - name: Remove the autowas_basedir folder
+    - name: Remove folders create by install_autowas role
       ansible.builtin.file:
-        path: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
+        path: "{{ item }}"
         state: absent
-      register: _result
-
-    - name: Remove the config.user file in home directory
-      ansible.builtin.file:
-        path: "{{ user_home + '/autowas/etc/config.user' }}"
-        state: absent
+      loop:
+        - "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
+        - "{{ user_home + '/autowas' }}"
+        - "{{ user_home + '/.fyre/stacks' }}"
       register: _result
