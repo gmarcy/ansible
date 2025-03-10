@@ -36,7 +36,9 @@
     src: "{{ wasbld_folder + '/linux_java.zip' }}"
     dest: "{{ wasbld_folder + '/java-tmp' }}"
     extra_opts: ['-q']
-    include: 'java/linuxamd64/*'
+    include:
+      - 'java/linuxamd64/*'
+      - 'java/java17/*'
     remote_src: true
   no_log: true
   register: _result
@@ -56,6 +58,13 @@
 - name: Move the extracted files to where we really want them
   ansible.builtin.command:
     cmd: mv java-tmp/java/linuxamd64 java
+    chdir: "{{ wasbld_folder }}"
+  register: _result
+  changed_when: _result.rc == 0
+
+- name: Move the extracted files to where we really want them
+  ansible.builtin.command:
+    cmd: mv java-tmp/java17 java/java17
     chdir: "{{ wasbld_folder }}"
   register: _result
   changed_when: _result.rc == 0

@@ -24,20 +24,11 @@
     dest: "{{ user_home + '/.local/bin/direnv' }}"
     mode: '0755'
 
-- name: Create the ~/.bashrc.d folder
-  ansible.builtin.file:
-    path: "{{ user_home + '/.bashrc.d' }}"
-    state: directory
-    mode: '0755'
-  register: _result
-
-- name: Create ~/.bashrc.d/direnv file
-  ansible.builtin.copy:
-    content: |
-      eval "$(direnv hook bash)"
-    dest: "{{ user_home + '/.bashrc.d/direnv.bash' }}"
-    mode: '0644'
-  register: _result
+- name: Add eval for direnv to ~/.bashrc
+  ansible.builtin.lineinfile:
+    path: "{{ user_home + '/.bashrc' }}"
+    regexp: '^eval "$(direnv hook bash)"$'
+    line: 'eval "$(direnv hook bash)"'
 
 - name: Clear temporary facts
   ansible.builtin.set_fact:
