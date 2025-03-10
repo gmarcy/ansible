@@ -9,6 +9,6 @@
         path: "{{ item }}"
         state: absent
       loop:
-        - "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
+        - "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
         - "{{ user_home + '/autowas' }}"
       register: _result

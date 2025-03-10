@@ -11,13 +11,13 @@
         src: "{{ autowas_regression_config_dir + '/' + autowas_config_file }}"
         mode: '0600'
       vars:
-        autowas_regression_config_dir: "{{ hostvars['cluster-facts'].options.autowas_regression_config_dir }}"
+        autowas_regression_config_dir: "{{ hostvars['autowas-facts'].options.autowas_regression_config_dir }}"
 
     - name: Check that fetch produced a non-empty file
       ansible.builtin.stat:
         path: "{{ clusters_basedir + '/' + autowas_config_file }}"
       register: _result
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Assert that it is not empty
@@ -31,7 +31,7 @@
         dest: "{{ template_path }}"
         mode: '0600'
       register: _result
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update LEVEL line
@@ -39,7 +39,7 @@
         path: "{{ template_path }}"
         regexp: '^  LEVEL = latest'
         line: '  LEVEL = "{% raw %}{{ autowas_was_level }}{% endraw %}"'
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update HOST_NAME_1 line
@@ -47,7 +47,7 @@
         path: "{{ template_path }}"
         regexp: '^  HOST_NAME_1 = ""'
         line: '  HOST_NAME_1 = "{% raw %}{{ first_server_fqdn }}{% endraw %}"'
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update USER_1 line
@@ -55,7 +55,7 @@
         path: "{{ template_path }}"
         regexp: '^  USER_1 = ""'
         line: '  USER_1 = "{% raw %}{{ autowas_cfg_ssh_user }}{% endraw %}"'
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update INSTALL_DIR_1 line
@@ -63,7 +63,7 @@
         path: "{{ template_path }}"
         regexp: '^  INSTALL_DIR_1 = ""'
         line: '  INSTALL_DIR_1 = "{% raw %}{{ autowas_cfg_install_path_basedir }}{% endraw %}"'
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update HOST_NAME_2 line
@@ -71,7 +71,7 @@
         path: "{{ template_path }}"
         regexp: '^  HOST_NAME_2 = ""'
         line: '  HOST_NAME_2 = "{% raw %}{{ second_server_fqdn }}{% endraw %}"'
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update USER_2 line
@@ -79,7 +79,7 @@
         path: "{{ template_path }}"
         regexp: '^  USER_2 = ""'
         line: '  USER_2 = "{% raw %}{{ autowas_cfg_ssh_user }}{% endraw %}"'
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update INSTALL_DIR_2 line
@@ -87,7 +87,7 @@
         path: "{{ template_path }}"
         regexp: '^  INSTALL_DIR_2 = ""'
         line: '  INSTALL_DIR_2 = "{% raw %}{{ autowas_cfg_install_path_basedir }}{% endraw %}"'
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update serverPassword line
@@ -99,7 +99,7 @@
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
         autowas_ldap_password_secret: "{{ secrets.autowas_ldap_password }}"
         autowas_ldap_password: "{{ lookup(autowas_ldap_password_secret.module, autowas_ldap_password_secret.param) | trim }}"
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Update admin_password line
@@ -111,14 +111,14 @@
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
         autowas_ihs_password_secret: "{{ secrets.autowas_ihs_password }}"
         autowas_ihs_password: "{{ lookup(autowas_ihs_password_secret.module, autowas_ihs_password_secret.param) | trim }}"
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Check for empty template source
       ansible.builtin.stat:
         path: "{{ template_path }}"
       register: _result
-      delegate_to: 'cluster-facts'
+      delegate_to: 'autowas-facts'
       delegate_facts: true
 
     - name: Assert that it is not empty
@@ -140,8 +140,8 @@
       vars:
         first_server_fqdn: "{{ hostvars[groups['all_nodes'][0]].fqdn }}"
         second_server_fqdn: "{{ hostvars[groups['all_nodes'][1]].fqdn }}"
-        autowas_cfg_ssh_user: "{{ hostvars['cluster-facts'].options.autowas_cfg_ssh_user }}"
-        autowas_cfg_install_path_basedir: "{{ hostvars['cluster-facts'].options.autowas_cfg_install_path_basedir }}"
+        autowas_cfg_ssh_user: "{{ hostvars['autowas-facts'].options.autowas_cfg_ssh_user }}"
+        autowas_cfg_install_path_basedir: "{{ hostvars['autowas-facts'].options.autowas_cfg_install_path_basedir }}"
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
         autowas_ldap_password_secret: "{{ secrets.autowas_ldap_password }}"
         autowas_ihs_password_secret: "{{ secrets.autowas_ihs_password }}"
@@ -177,11 +177,11 @@
 
   vars:
     clusters_basedir: "{{ hostvars['cluster-facts'].clusters_basedir }}"
-    autowas_basedir: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
-    autowas_config_dir: "{{ hostvars['cluster-facts'].options.autowas_config_dir }}"
-    autowas_config_file_suffix: "{{ hostvars['cluster-facts'].options.autowas_config_file_suffix }}"
-    autowas_was_level: "{{ hostvars['cluster-facts'].options.autowas_was_level }}"
-    autowas_was_release: "{{ hostvars['cluster-facts'].options.autowas_was_release }}"
+    autowas_basedir: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
+    autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
+    autowas_config_file_suffix: "{{ hostvars['autowas-facts'].options.autowas_config_file_suffix }}"
+    autowas_was_level: "{{ hostvars['autowas-facts'].options.autowas_was_level }}"
+    autowas_was_release: "{{ hostvars['autowas-facts'].options.autowas_was_release }}"
     autowas_config_file: "{{ autowas_was_release + autowas_config_file_suffix }}"
     template_path: "{{ clusters_basedir + '/' + autowas_config_file + '.j2' }}"
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"

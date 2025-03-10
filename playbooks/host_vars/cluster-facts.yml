@@ -20,13 +20,3 @@ vars_host:
   openshift_distro: ''
   openshift_version: ''
   load_ssh_keypair: true
-  templates_basedir: '/home/runner/.kube/clusters'
-  autowas_archive_url: 'http://rtpgsa.ibm.com/gsa/rtpgsa/projects/m/moonstone/drivers/releases/latest.tar.gz'
-  autowas_basedir: '/opt/autowas'
-  autowas_config_dir: '/opt/scripts'
-  autowas_config_file_suffix: '_ND.Liberty_SemeruPrereqsSdk.cfg'
-  autowas_cfg_ssh_user: 'root'
-  autowas_cfg_install_path_basedir: '/opt'
-  autowas_regression_config_dir: '/opt/autowas/data/regression_configs'
-  autowas_was_level: 'latest'
-  autowas_was_release: 'WAS90X'
