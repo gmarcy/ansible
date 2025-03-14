@@ -32,9 +32,9 @@
       register: _result
 
   vars:
-    autowas_basedir: "{{ hostvars['cluster-facts'].options.autowas_basedir }}"
-    autowas_config_dir: "{{ hostvars['cluster-facts'].options.autowas_config_dir }}"
-    autowas_config_file: "{{ hostvars['cluster-facts'].options.autowas_config_file }}"
+    autowas_basedir: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
+    autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
+    autowas_config_file: "{{ hostvars['autowas-facts'].options.autowas_config_file }}"
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
     install_marker: "{{ autowas_config_dir + '/.install_completed' }}"
     topology_marker: "{{ autowas_config_dir + '/.createTopology_completed' }}"
@@ -49,4 +49,4 @@
     - '/etc/.ibm'
   register: _result
   vars:
-    autowas_cfg_install_path_basedir: "{{ hostvars['cluster-facts'].options.autowas_cfg_install_path_basedir }}"
+    autowas_cfg_install_path_basedir: "{{ hostvars['autowas-facts'].options.autowas_cfg_install_path_basedir }}"
