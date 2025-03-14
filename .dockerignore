@@ -1,3 +1,8 @@
+.git
+.secrets
+autowas_script_encoded_secrets
 container_secrets
 inventory/**
+london_autowas_secrets
+roles/install_cmvc_cli
 secrets/**
