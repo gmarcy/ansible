@@ -24,6 +24,8 @@
         dest: "{{ user_home + '/.cache/autowas/saved-' + now(fmt='%Y-%m-%dT%H:%M:%S') + '.tar.gz' }}"
         mode: '0644'
         path: "{{ autowas_config_dir }}"
+        exclusion_patterns:
+          - 'scripts/regression/tools/*'
 
     - name: Remove the autowas_config_dir folder
       ansible.builtin.file:
