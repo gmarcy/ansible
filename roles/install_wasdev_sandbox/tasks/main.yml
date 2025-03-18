@@ -7,6 +7,12 @@
   name: Tasks which are only performed on the first VM
   block:
 
+    - name: Define the sandbox_ssh_keytype fact
+      ansible.builtin.set_fact:
+        sandbox_ssh_keytype: "{{ ssh_keytype }}"
+      vars:
+        ssh_keytype: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_keytype | default(hostvars['localhost-facts'].options.ssh_keytype) }}"
+
     - when: hostvars['sandbox-facts'].options.sandbox_ssh_key is defined
       name: Copy the sandbox_ssh_key contents into the remote ~/.ssh folder
       block:
@@ -16,8 +22,7 @@
             path: "{{ ssh_keypair_path }}"
           vars:
             sandbox_ssh_prefix: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_prefix }}"
-            ssh_keypair_type: "{{ hostvars['localhost-facts'].options.ssh_keytype }}"
-            ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + ssh_keypair_type }}"
+            ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + sandbox_ssh_keytype }}"
           register: _result_stat
 
         - when: not _result_stat.stat.exists
@@ -47,8 +52,7 @@
             echo 'ls -1' | sftp -q -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -o IdentityFile={{ ssh_keypair_path }} -b - {{ gsa_username }}@rtpgsa.ibm.com:/projects/w/was.build/botp//{{ was_release }}/{{ test_or_daily }}/
           vars:
             sandbox_ssh_prefix: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_prefix }}"
-            ssh_keypair_type: "{{ hostvars['localhost-facts'].options.ssh_keytype }}"
-            ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + ssh_keypair_type }}"
+            ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + sandbox_ssh_keytype }}"
             test_or_daily: "{{ hostvars['sandbox-facts'].options.test_or_daily | default('test') }}"
             was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
             secrets: "{{ hostvars['playbook-secrets'].secrets }}"
