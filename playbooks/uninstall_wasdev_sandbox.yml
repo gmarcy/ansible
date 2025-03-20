@@ -1,0 +1,26 @@
+---
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: uninstall_sandbox
+  roles:
+  - role: gmarcy.ansible.check_stop_before
+    task_to_check: task-uninstall-sandbox
+
+- name: Uninstall tWAS development sandbox
+  hosts: all_nodes
+  gather_facts: false
+  tags: uninstall_sandbox
+  roles:
+  - role: gmarcy.ansible.uninstall_wasdev_sandbox
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: uninstall_sandbox
+  roles:
+  - role: gmarcy.ansible.check_stop_after
+    task_to_check: task-uninstall-sandbox
