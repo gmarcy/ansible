@@ -16,7 +16,7 @@
         - '/opt/scripts/regression/tools/mantis.zip'
         - '/opt/scripts/regression/tools/sharedLibraries'
         - "{{ '/opt/scripts/regression/' + was_release }}"
-        - '/opt/scripts/setEnv.sh
+        - '/opt/scripts/setEnv.sh'
       register: _result
       vars:
         was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
