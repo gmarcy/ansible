@@ -1,0 +1,22 @@
+---
+
+- when: inventory_hostname == (groups['all_nodes'] | first)
+  name: Tasks which are only performed on the first VM
+  block:
+
+    - name: Remove folders created by install_wasdev_sandbox role
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ user_home + '/wasbld' }}"
+        - "{{ user_home + '/user.build.properties' }}"
+        - '/opt/scripts/regression/tools/java'
+        - '/opt/scripts/regression/tools/mantis'
+        - '/opt/scripts/regression/tools/mantis.zip'
+        - '/opt/scripts/regression/tools/sharedLibraries'
+        - "{{ '/opt/scripts/regression/' + was_release }}"
+        - '/opt/scripts/setEnv.sh
+      register: _result
+      vars:
+        was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
