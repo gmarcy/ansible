@@ -1,0 +1,136 @@
+---
+
+- name: Get the cluster status
+  ansible.builtin.include_role:
+    name: gmarcy.ansible.cluster_gather_facts_fyredev
+    tasks_from: gather_cluster_status.yml
+  vars:
+    fyredev_operation: 'build'
+
+- when: _cluster_exists and _cluster_all_vms_exist and _cluster_all_vms_added
+  name: Mark that we have the fyredev cluster status
+  ansible.builtin.set_fact:
+    gathered_cluster_status: true
+
+- when: not _cluster_all_vms_exist
+  name: Create the cluster VMs
+  block:
+
+    - name: Set distro_include_tasks fact
+      ansible.builtin.set_fact:
+        _distro_include_tasks: "{{ distro_tasks[kubernetes_distro].provision | default('') }}"
+
+    - name: Assert that we have a tasks file to include
+      ansible.builtin.assert:
+        that: _distro_include_tasks | length > 0
+        msg: "{{ 'Unable to find tasks to include for distro ' + kubernetes_distro }}"
+
+    - name: Include the tasks to create the configuration for the Fyre build operation
+      ansible.builtin.include_tasks: "{{ _distro_include_tasks }}"
+
+    - name: Build the cluster and wait for completion
+      ansible.builtin.include_tasks: build_cluster_and_wait.yml
+
+- when: not _cluster_exists
+  name: Create the cluster
+  block:
+
+    - name: Create the cluster
+      ansible.builtin.uri:
+        url: "{{ fyredev_cluster_create_url }}"
+        method: "POST"
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+        body_format: "json"
+        body:
+          name: "{{ cluster_name }}"
+          description: "{{ cluster_description | urlencode }}"
+        status_code: [200, 400]
+        timeout: 60
+      vars:
+        cluster_description: "{{ options.fyredev_description | default('Fyre cluster for ' + _secrets.fyre_user) }}"
+      register: _result_cluster_create_request
+      failed_when: _result_cluster_create_request.status | default(404) not in [-1,200,400]
+      delay: 60
+      retries: 200
+      until: _result_cluster_create_request.status != -1
+
+    - name: Check for errors
+      ansible.builtin.assert:
+        that: _result_cluster_create_request.json.status == 'success'
+        msg: "cluster create request failed"
+
+    - name: Wait until cluster create has completed operation
+      ansible.builtin.uri:
+        url: "{{ fyredev_request_status_url }}"
+        method: GET
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+        timeout: 60
+      vars:
+        fyredev_request_id: "{{ _result_cluster_create_request.json.request_id }}"
+      register: _result_show_request
+      changed_when: false
+      delay: 20
+      retries: 600
+      until: (_result_show_request.status == 200) and (_result_show_request.json.status == 'success')
+
+- when: not _cluster_all_vms_added
+  name: Add VMs to the cluster
+  block:
+
+    - name: Add VMs to the cluster
+      ansible.builtin.uri:
+        url: "{{ fyredev_cluster_add_vms_url }}"
+        method: "PUT"
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+        body_format: "json"
+        body:
+          vm_id: "{{ _cluster_missing_vm_ids }}"
+        status_code: [200, 400]
+        timeout: 60
+      vars:
+        cluster_id: "{{ cluster_name }}"
+      register: _result_cluster_add_vms_request
+      failed_when: _result_cluster_add_vms_request.status | default(404) not in [-1,200,400]
+      delay: 60
+      retries: 200
+      until: _result_cluster_add_vms_request.status != -1
+
+    - name: Check for errors
+      ansible.builtin.assert:
+        that: _result_cluster_add_vms_request.json.status == 'success'
+        msg: "cluster add VMs request failed"
+
+    - name: Wait until cluster add VMs has completed operation
+      ansible.builtin.uri:
+        url: "{{ fyredev_request_status_url }}"
+        method: GET
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+        timeout: 60
+      vars:
+        fyredev_request_id: "{{ _result_cluster_add_vms_request.json.request_id }}"
+      register: _result_show_request
+      changed_when: false
+      delay: 20
+      retries: 600
+      until: (_result_show_request.status == 200) and (_result_show_request.json.status == 'success')
+
+- name: Get the cluster details
+  ansible.builtin.include_role:
+    name: gmarcy.ansible.cluster_gather_facts_fyredev
+    tasks_from: gather_cluster_details.yml
+
+- name: Mark that we have the fyredev cluster details
+  ansible.builtin.set_fact:
+    gathered_cluster_details: true

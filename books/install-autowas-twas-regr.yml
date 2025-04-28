@@ -1,0 +1,8 @@
+---
+
+- import_playbook: gmarcy.ansible.gather_playbook_facts
+- import_playbook: gmarcy.ansible.request_cluster
+- import_playbook: gmarcy.ansible.gather_cluster_facts
+- import_playbook: gmarcy.ansible.install_autowas
+- import_playbook: gmarcy.ansible.install_twas
+- import_playbook: gmarcy.ansible.install_wasdev_sandbox

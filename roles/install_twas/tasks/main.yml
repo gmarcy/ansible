@@ -6,7 +6,7 @@
 
     - name: Fetch remote autowas configuration
       ansible.builtin.fetch:
-        dest: "{{ clusters_basedir + '/' }}"
+        dest: "{{ cluster_dir + '/' }}"
         flat: true
         src: "{{ autowas_regression_config_dir + '/' + autowas_config_file }}"
         mode: '0600'
@@ -15,7 +15,7 @@
 
     - name: Check that fetch produced a non-empty file
       ansible.builtin.stat:
-        path: "{{ clusters_basedir + '/' + autowas_config_file }}"
+        path: "{{ cluster_dir + '/' + autowas_config_file }}"
       register: _result
       delegate_to: 'autowas-facts'
       delegate_facts: true
@@ -27,7 +27,7 @@
 
     - name: Create a copy of the file with .j2 suffix
       ansible.builtin.copy:
-        src: "{{ clusters_basedir + '/' + autowas_config_file }}"
+        src: "{{ cluster_dir + '/' + autowas_config_file }}"
         dest: "{{ template_path }}"
         mode: '0600'
       register: _result
@@ -176,14 +176,14 @@
       changed_when: _result.start != None
 
   vars:
-    clusters_basedir: "{{ hostvars['cluster-facts'].clusters_basedir }}"
+    cluster_dir: "{{ hostvars['cluster-facts'].cluster_dir }}"
     autowas_basedir: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
     autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
     autowas_config_file_suffix: "{{ hostvars['autowas-facts'].options.autowas_config_file_suffix }}"
     autowas_was_level: "{{ hostvars['autowas-facts'].options.autowas_was_level }}"
     autowas_was_release: "{{ hostvars['autowas-facts'].options.autowas_was_release }}"
     autowas_config_file: "{{ autowas_was_release + autowas_config_file_suffix }}"
-    template_path: "{{ clusters_basedir + '/' + autowas_config_file + '.j2' }}"
+    template_path: "{{ cluster_dir + '/' + autowas_config_file + '.j2' }}"
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
     install_marker: "{{ autowas_config_dir + '/.install_completed' }}"
     topology_marker: "{{ autowas_config_dir + '/.createTopology_completed' }}"

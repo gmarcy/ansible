@@ -1,0 +1,106 @@
+---
+
+- name: Get the cluster status
+  ansible.builtin.include_role:
+    name: gmarcy.ansible.cluster_gather_facts_fyredev
+    tasks_from: gather_cluster_status.yml
+  vars:
+    fyredev_operation: 'delete'
+
+- when: _cluster_all_vms_exist
+  name: Delete the cluster VMs
+  block:
+
+    - name: Delete cluster Fyre VMs
+      ansible.builtin.uri:
+        url: "{{ fyredev_delete_url }}"
+        method: "DELETE"
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+        status_code: [200, 400]
+      register: _result_delete_cluster_vms
+      failed_when: _result_delete_cluster_vms.status | default(404) not in [-1,200]
+      loop: "{{ _cluster_vm_ids }}"
+      vars:
+        fyredev_id: "{{ item }}"
+      delay: 20
+      retries: 600
+      until: _result_delete_cluster_vms.status != -1
+
+    - name: Stash a copy of the delete VMs response
+      ansible.builtin.copy:
+        content: |
+          {{ _result_delete_cluster_vms.results | map(attribute='json') | to_nice_json }}
+        dest: "{{ cluster_dir + '/fyredev_delete_resp.json' }}"
+        mode: '0644'
+
+    - name: Wait until delete of cluster VMs has completed
+      ansible.builtin.uri:
+        url: "{{ fyredev_request_status_url }}"
+        method: GET
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+      loop: "{{ _result_delete_cluster_vms.results | map(attribute='json') }}"
+      vars:
+         fyredev_request_id: "{{ item.request_id }}"
+      register: _result_show_request
+      changed_when: false
+      delay: 20
+      retries: 600
+      until: (_result_show_request.status == 200) and (_result_show_request.json.request.completion_percent == 100)
+
+- when: _cluster_exists
+  name: Delete the cluster
+  block:
+
+    - name: Delete Fyre VM cluster
+      ansible.builtin.uri:
+        url: "{{ fyredev_cluster_delete_url }}"
+        method: "DELETE"
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+        status_code: [200, 400]
+      register: _result_delete_cluster
+      failed_when: _result_delete_cluster.status | default(404) not in [-1,200]
+      vars:
+        cluster_id: "{{ cluster_name }}"
+      delay: 20
+      retries: 600
+      until: _result_delete_cluster.status != -1
+
+    - name: Check for errors
+      ansible.builtin.assert:
+        that: _result_delete_cluster.json.status == 'success'
+        msg: "cluster delete request failed"
+
+    - name: Wait until delete of cluster has completed
+      ansible.builtin.uri:
+        url: "{{ fyredev_request_status_url }}"
+        method: GET
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+        timeout: 60
+      vars:
+        fyredev_request_id: "{{ _result_delete_cluster.json.request_id }}"
+      register: _result_show_request
+      changed_when: false
+      delay: 20
+      retries: 600
+      until: (_result_show_request.status == 200) and (_result_show_request.json.status == 'success')
+
+- name: Clear _secrets fact
+  ansible.builtin.set_fact:
+    _secrets: {}
+
+- name: Remove previous cluster dir
+  ansible.builtin.file:
+    path: "{{ cluster_dir }}"
+    state: absent

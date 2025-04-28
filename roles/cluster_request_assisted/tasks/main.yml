@@ -126,7 +126,7 @@
 - name: Collect ipxe macaddrs from all cluster hosts
   ansible.builtin.set_fact:
     cluster_ipxe_macaddrs: "{{ (cluster_ipxe_macaddrs | default([])) + [item] }}"
-  loop: "{{ hostvars['cluster-facts']['cluster_host_names'] | map('extract', hostvars, 'ipxe_mac_address') }}"
+  loop: "{{ hostvars['cluster-facts']['cluster_hostnames'] | map('extract', hostvars, 'ipxe_mac_address') }}"
 
 - name: Create ipxe folders for cluster host mac addresses
   ansible.builtin.file:
@@ -157,7 +157,7 @@
   ansible.builtin.include_role:
     name: power_on_cluster_hosts
   vars:
-    cluster_host_names: "{{ hostvars['cluster-facts'].cluster_host_names }}"
+    cluster_hostnames: "{{ hostvars['cluster-facts'].cluster_hostnames }}"
     secrets: "{{ hostvars['playbook-secrets'].secrets }}"
     ipmitool_username_secret: "{{ secrets.ipmitool_username }}"
     ipmitool_password_secret: "{{ secrets.ipmitool_password }}"

@@ -16,16 +16,20 @@
   name: Set facts based on cluster name
   ansible.builtin.include_tasks: set_cluster_name_facts.yml
 
-- name: Check to see if we already have a shared kubeconfig
-  ansible.builtin.stat:
-    path: "{{ clusters_shared_kubeconfig_path }}"
-  register: _result
+- when: options.kubernetes_distro != 'none'
+  name: Process shared kubeconfig only when nedded
+  block:
 
-- when: _result.stat.exists
-  name: Load contents of the shared kubeconfig
-  ansible.builtin.set_fact:
-    shared_kubeconfig: "{{ lookup('file', clusters_shared_kubeconfig_path, split_lines=false) | from_yaml }}"
-  no_log: "{{ noLog }}"
+    - name: Check to see if we already have a shared kubeconfig
+      ansible.builtin.stat:
+        path: "{{ clusters_shared_kubeconfig_path }}"
+      register: _result
+
+    - when: _result.stat.exists
+      name: Load contents of the shared kubeconfig
+      ansible.builtin.set_fact:
+        shared_kubeconfig: "{{ lookup('file', clusters_shared_kubeconfig_path, split_lines=false) | from_yaml }}"
+      no_log: "{{ noLog }}"
 
 - name: Clear temp fact
   ansible.builtin.set_fact:

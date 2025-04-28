@@ -1,8 +1,8 @@
 ---
 
-- name: Unroll the host_names in the groups_specs_map
+- name: Unroll the hostnames in the groups_specs_map
   ansible.builtin.set_fact:
-    groups_specs_hosts_map_unrolled: "{{ groups_specs_hosts_map_unrolled | default([]) | union(item.value.host_names | default([]) | product([item.key])) }}"
+    groups_specs_hosts_map_unrolled: "{{ groups_specs_hosts_map_unrolled | default([]) | union(item.value.hostnames | default([]) | product([item.key])) }}"
   loop: "{{ groups_specs_map | dict2items }}"
 
 - name: Add hosts to requested groups
@@ -14,7 +14,7 @@
 
 - name: Unroll the keys in the groups_specs_map
   ansible.builtin.set_fact:
-    groups_specs_map_unrolled: "{{ groups_specs_map_unrolled | default([]) | union(item.value.host_names | default([]) | product([item.key] | product(item.value.keys()))) }}"
+    groups_specs_map_unrolled: "{{ groups_specs_map_unrolled | default([]) | union(item.value.hostnames | default([]) | product([item.key] | product(item.value.keys()))) }}"
   loop: "{{ groups_specs_map | dict2items }}"
 
 - name: Apply values in groups_specs_map to hosts
@@ -23,4 +23,4 @@
   delegate_to: "{{ item[0] }}"
   delegate_facts: true
   loop: "{{ groups_specs_map_unrolled }}"
-  when: item[1][1] != 'host_names' and hostvars[item[0]][item[1][1]] is not defined
+  when: item[1][1] != 'hostnames' and hostvars[item[0]][item[1][1]] is not defined

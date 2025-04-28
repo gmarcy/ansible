@@ -82,7 +82,7 @@
           additional_disks: {{ options.fyre_ember_additional_disks }}
       {% endif %}
       {% endfor %}
-    dest: "{{ cluster_dir + '/fyre_cluster_req.yml' }}"
+    dest: "{{ cluster_dir + '/fyre_build_req.yml' }}"
     mode: '0600'
 
 - name: Clear register results and temporary facts
