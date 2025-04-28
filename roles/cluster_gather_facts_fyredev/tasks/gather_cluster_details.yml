@@ -1,22 +1,29 @@
 ---
 
-- name: Fetch the cluster details
-  ansible.builtin.uri:
-    url: "{{ fyre_clusterdetailurl }}"
-    method: GET
-    user: "{{ _secrets.fyre_user }}"
-    password: "{{ _secrets.fyre_apikey }}"
-    validate_certs: false
-    force_basic_auth: "{{ options.fyre_force_basic_auth }}"
-  register: _result_cluster_details
-  changed_when: false
-  delay: 20
-  retries: 30
-  until: _result_cluster_details.status != -1
+- when: _cluster_details_json is not defined or _cluster_details_json is mapping
+  name: Fetch details if not already known
+  block:
 
-- name: Set fact for _cluster_details_json
-  ansible.builtin.set_fact:
-    _cluster_details_json: "{{ _result_cluster_details.json[cluster_name] }}"
+    - name: Fetch the cluster details
+      ansible.builtin.uri:
+        url: "{{ fyredev_details_url }}"
+        method: GET
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+      loop: "{{ _cluster_vm_ids }}"
+      vars:
+        fyredev_id: "{{ item }}"
+      register: _result_cluster_details
+      changed_when: false
+      delay: 20
+      retries: 30
+      until: _result_cluster_details.status != -1
+
+    - name: Set fact for _cluster_details_json
+      ansible.builtin.set_fact:
+        _cluster_details_json: "{{ _result_cluster_details.results | map(attribute='json') }}"
 
 - name: Set ssh related facts
   ansible.builtin.set_fact:

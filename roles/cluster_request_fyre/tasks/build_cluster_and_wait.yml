@@ -9,7 +9,7 @@
     validate_certs: false
     force_basic_auth: "{{ options.fyre_force_basic_auth }}"
     body_format: "json"
-    body: "{{ lookup('file', cluster_dir + '/fyre_cluster_req.yml') | from_yaml }}"
+    body: "{{ lookup('file', cluster_dir + '/fyre_build_req.yml') | from_yaml }}"
   register: fyre_status
 
 - name: Set fact for response

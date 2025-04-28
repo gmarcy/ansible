@@ -1,0 +1,122 @@
+---
+
+- name: Set of assertions for non kubernetes clusters
+  ansible.builtin.assert:
+    that: options.fyredev_ember_count >= 1
+
+- name: Create build request bodies for all cluster hosts
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    build_vm_request_body:
+      site: "{{ site }}"
+      product_group_id: "{{ product_group_id }}"
+      hostname: "{{ item }}"
+      platform: "{{ platform }}"
+      cpu: "{{ cpu }}"
+      memory: "{{ memory }}"
+      os: "{{ os }}"
+      description: "{{ description }}"
+      public_network: "{{ 'y' if public_network else 'n' }}"
+      dns: "{{ 'y' if dns else 'n' }}"
+      additional_disk: "{{ additional_disk }}"
+  vars:
+    site: "{{ hostvars[item].options.fyredev_site | default(options.fyredev_site) }}"
+    product_group_id: "{{ (hostvars[item].options.fyredev_group_id | default(options.fyredev_group_id)) }}"
+    platform: "{{ hostvars[item].options.fyredev_platform | default(options.fyredev_platform) }}"
+    cpu: "{{ hostvars[item].options.fyredev_ember_cpu | default(options.fyredev_ember_cpu) }}"
+    memory: "{{ hostvars[item].options.fyredev_ember_mem | default(options.fyredev_ember_mem) }}"
+    os: "{{ hostvars[item].options.fyredev_ember_os | default(options.fyredev_ember_os) }}"
+    description: "{{ hostvars[item].options.fyredev_description | default(options.fyredev_description | default('Fyre VMs for ' + _secrets.fyre_user)) }}"
+    public_network: "{{ hostvars[item].options.fyredev_public_network | default(options.fyredev_public_network) }}"
+    dns: "{{ hostvars[item].options.fyredev_dns | default(options.fyredev_dns) }}"
+    additional_disk: "{{ hostvars[item].options.fyredev_ember_additional_disk | default(options.fyredev_ember_additional_disk) }}"
+  loop: "{{ cluster_hostnames }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+
+- when: (options.fyredev_quota_type == 'product_group') and (0 in (cluster_hostnames | map('extract', hostvars, 'build_vm_request_body') | map(attribute='product_group_id') | unique))
+  name: We have cluster hosts that need us to lookup the group id for their site
+  block:
+
+    - name: Lookup the quota available to us
+      ansible.builtin.uri:
+        url: "{{ fyredev_quota_url + '?site=' + item }}"
+        method: GET
+        user: "{{ _secrets.fyre_user }}"
+        password: "{{ _secrets.fyre_apikey }}"
+        validate_certs: false
+        force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+      loop: "{{ sites_needing_default_group_id }}"
+      changed_when: false
+      register: _result_quota
+
+    - name: Set _default_group_ids fact
+      ansible.builtin.set_fact:
+        _default_group_ids: "{{ _default_group_ids | default({}) | combine({fyredev_site: fyredev_group_id}) }}"
+      loop: "{{ _result_quota.results | map(attribute='item') | zip(_result_quota.results | map(attribute='json.details')) }}"
+      vars:
+        fyredev_site: "{{ item[0] }}"
+        fyredev_group_id: "{{ item[1] | map(attribute='product_group_id') | first | int }}"
+
+    - name: Update build request bodies needing default group id
+      ansible.builtin.set_fact:
+        build_vm_request_body: "{{ old_request_body | combine({'product_group_id': product_group_id}) }}"
+      vars:
+        old_request_body: "{{ hostvars[item].build_vm_request_body }}"
+        product_group_id: "{{ _default_group_ids[old_request_body.site] }}"
+      loop: "{{ hosts_needing_default_group_id }}"
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+
+  vars:
+    sites: "{{ cluster_hostnames | map('extract', hostvars, 'build_vm_request_body') | map(attribute='site') }}"
+    group_ids: "{{ cluster_hostnames | map('extract', hostvars, 'build_vm_request_body') | map(attribute='product_group_id') }}"
+    sites_needing_default_group_id: "{{ sites | zip(group_ids) | map('string') | select('match', '\\(.*. 0\\)') | map('regex_replace', '\\(.(.*)., 0\\)', '\\1') | unique }}"
+    hosts_needing_default_group_id: "{{ cluster_hostnames | map('extract', hostvars, 'build_vm_request_body') | selectattr('product_group_id', '==', 0) | map(attribute='hostname') }}"
+
+- name: Clear register results and temporary facts
+  ansible.builtin.set_fact:
+    _default_group_ids: "{{ {} if _default_group_ids is defined else omit }}"
+    _result_quota: {}
+
+- name: Ensure empty cluster dir
+  ansible.builtin.file:
+    path: "{{ cluster_dir }}"
+    mode: '0755'
+    state: "{{ item }}"
+  loop:
+  - absent
+  - directory
+
+- name: Write cluster specific fyre request body
+  ansible.builtin.copy:
+    content: |
+      #jinja2: lstrip_blocks: True
+      {% for host in cluster_hostnames %}
+      - site: "{{ hostvars[host].build_vm_request_body.site }}"
+        quota_type: "{{ options.fyredev_quota_type }}"
+        {% if options.fyredev_quota_type == 'product_group' %}
+        product_group_id: "{{ hostvars[host].build_vm_request_body.product_group_id }}"
+        {% endif %}
+        {% if options.fyredev_quota_type == 'quick_burn' %}
+        time_to_live: "{{ options.fyredev_quickburn_ttl }}"cluster_hostnames | length == 0
+        {% endif %}
+        {% if options.fyredev_expiration is defined %}
+        expiration: "{{ options.fyredev_expiration }}"
+        {% endif %}
+        ssh_key: "{{ hostvars['cluster-facts'].options.ssh_public_key }}"
+        hostname:
+          - "{{ hostvars[host].build_vm_request_body.hostname }}"
+        platform: "{{ hostvars[host].build_vm_request_body.platform }}"
+        cpu: "{{ hostvars[host].build_vm_request_body.cpu }}"
+        memory: "{{ hostvars[host].build_vm_request_body.memory }}"
+        os: "{{ hostvars[host].build_vm_request_body.os }}"
+        description: "{{ hostvars[host].build_vm_request_body.description }}"
+        public_network: "{{ hostvars[host].build_vm_request_body.public_network }}"
+        dns: "{{ hostvars[host].build_vm_request_body.dns }}"
+        {% if hostvars[host].build_vm_request_body.additional_disk | length > 0 %}
+        additional_disk: {{ hostvars[host].build_vm_request_body.additional_disk }}
+        {% endif %}
+      {% endfor %}
+    dest: "{{ cluster_dir + '/fyredev_build_req.yml' }}"
+    mode: '0600'

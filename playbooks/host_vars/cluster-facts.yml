@@ -12,7 +12,7 @@ vars_host:
   clusters_basedir: ''
   network_cidr: ''
   http_proxy: ''
-  cluster_host_names: []
+  cluster_hostnames: []
   single_node: false
   api_vip: ''
   ingress_vip: ''

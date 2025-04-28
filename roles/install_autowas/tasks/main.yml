@@ -23,6 +23,7 @@
     key: "{{ item[0] + ' ' + item[1] }}"
     state: present
   loop: "{{ hostvars['cluster-facts']._all_host_keys }}"
+  when: item[0] | length > 0
 
 - when: inventory_hostname == (groups['all_nodes'] | first)
   name: Tasks which are only performed on the first VM

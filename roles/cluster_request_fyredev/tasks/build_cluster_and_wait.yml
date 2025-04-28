@@ -1,0 +1,124 @@
+---
+
+- name: Check if build request is deployable
+  ansible.builtin.uri:
+    url: "{{ fyredev_build_url }}"
+    method: "POST"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
+    validate_certs: false
+    force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+    body_format: "json"
+    body: "{{ request_body | combine({'check_config':'y'}) }}"
+    status_code: [200, 400]
+    timeout: 60
+  loop: "{{ lookup('file', cluster_dir + '/fyredev_build_req.yml') | from_yaml }}"
+  loop_control:
+    label: "{{ item.hostname | first }}"
+  vars:
+    request_body: "{{ item }}"
+  register: _result_build_check_config
+  failed_when: _result_build_check_config.status | default(404) not in [-1,200,400]
+  delay: 60
+  retries: 200
+  until: _result_build_check_config.status != -1
+
+- name: Assert that build request is deployable
+  ansible.builtin.assert:
+    that: json.deployable
+    msg: "{{ [json.details] + (json.errors | default([])) }}"
+  loop: "{{ cluster_hostnames | zip(_result_build_check_config.results | map(attribute='json')) }}"
+  loop_control:
+    label: "{{ item[0] }}"
+  vars:
+    json: "{{ item[1] }}"
+
+- name: Build Fyre stack
+  ansible.builtin.uri:
+    url: "{{ fyredev_build_url }}"
+    method: "POST"
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
+    validate_certs: false
+    force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+    body_format: "json"
+    body: "{{ request_body | combine({'check_config':'n'}) }}"
+    status_code: [200, 400]
+    timeout: 60
+  loop: "{{ lookup('file', cluster_dir + '/fyredev_build_req.yml') | from_yaml }}"
+  vars:
+    request_body: "{{ item }}"
+  register: _result_build_request
+  failed_when: _result_build_request.status | default(404) not in [-1,200,400]
+  delay: 60
+  retries: 200
+  until: _result_build_request.status != -1
+
+- name: Stash a copy of the build response
+  ansible.builtin.copy:
+    content: |
+      {{ _result_build_request.results | map(attribute='json') | to_nice_json }}
+    dest: "{{ cluster_dir + '/fyredev_build_resp.json' }}"
+    mode: '0644'
+
+- name: Set fact for response
+  ansible.builtin.set_fact:
+    response_json: "{{ _result_build_request.results | map(attribute='json') }}"
+
+- name: Check for errors
+  ansible.builtin.assert:
+    that: json.status in ['submitted', 'success']
+    msg: "Cluster VM build request failed"
+  loop: "{{ response_json }}"
+  vars:
+    json: "{{ item }}"
+
+- name: Set fact for request_id
+  ansible.builtin.set_fact:
+    _request_ids: "{{ response_json | map(attribute='request_id') }}"
+    _cluster_missing_vm_ids: "{{ response_json | map(attribute='vm_id') }}"
+
+- name: Wait until cluster has completed operations
+  ansible.builtin.uri:
+    url: "{{ fyredev_request_status_url }}"
+    method: GET
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
+    validate_certs: false
+    force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+    timeout: 60
+  loop: "{{ _request_ids }}"
+  vars:
+    fyredev_request_id: "{{ item }}"
+  register: _result_show_request
+  changed_when: false
+  delay: 20
+  retries: 600
+  until: (_result_show_request.status == 200) and (_result_show_request.json.status == 'success') and (_result_show_request.json.request.completion_percent == 100)
+
+- name: Remove the cached response once the request has completed
+  ansible.builtin.file:
+    path: "{{ cluster_dir + '/fyredev_build_resp.json' }}"
+    state: absent
+
+- name: Fetch the cluster VMs details
+  ansible.builtin.uri:
+    url: "{{ fyredev_details_url }}"
+    method: GET
+    user: "{{ _secrets.fyre_user }}"
+    password: "{{ _secrets.fyre_apikey }}"
+    validate_certs: false
+    force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
+    timeout: 60
+  loop: "{{ _cluster_missing_vm_ids }}"
+  vars:
+    fyredev_id: "{{ item }}"
+  register: _result_details_response
+  changed_when: false
+  delay: 20
+  retries: 30
+  until: (_result_details_response.status == 200) and (_result_details_response.json.state == 'running')
+
+- name: Set _cluster_details_json fact
+  ansible.builtin.set_fact:
+    _cluster_details_json: "{{ _result_details_response.results | map(attribute='json') }}"

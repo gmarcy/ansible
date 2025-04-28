@@ -1,0 +1,81 @@
+---
+
+- name: Create node groups
+  ansible.builtin.add_host:
+    name: "{{ item.node }}"
+    groups: "{{ host_node_groups[host_node_role] }}"
+    ansible_connection: ssh
+    ansible_host: "{{ item.node }}"
+    ansible_ssh_extra_args: "{{ '-F ' + _ssh_paths.config }}"
+    ansible_ssh_user: "{{ hostvars['playbook-facts'].options.remote_user }}"
+    cluster_role: "{{ host_node_role }}"
+    fqdn: "{{ item.node + '.' + fyre_cluster_domain }}"
+    node_prepare_role: "{{ 'node_prepare_hosted_' + kubernetes_distro }}"
+    node_provisioning_role: "{{ 'node_provision_hosted_' + kubernetes_distro }}"
+    privateip: "{{ item.privateip }}"
+    publicip: "{{ item.publicip }}"
+    short_hostname: "{{ item.node }}"
+  loop: "{{ _cluster_details_json }}"
+  vars:
+    host_node_role: "{{ 'bastion' if (item.node is match('.*-inf$')) else (item.node | regex_replace('^.*-([^0-9]*)[0-9]?$', '\\1')) }}"
+    host_node_groups:
+      bastion:
+      - all_nodes
+      - bastion_node
+      master:
+      - all_nodes
+      - cluster_nodes
+      - master_nodes
+      worker:
+      - all_nodes
+      - cluster_nodes
+      - worker_nodes
+  changed_when: false
+
+- name: Set bastion node hostname fact
+  ansible.builtin.set_fact:
+    _bastion_hostname: "{{ (groups['bastion_node'] if (groups['bastion_node'] | default([]) | length > 0) else groups['master_nodes']) | default([]) | first }}"
+
+- name: Wait until we can resolve the hostname using DNS
+  ansible.builtin.set_fact:
+    _bastion_publicip: "{{ lookup('community.general.dig', hostvars[_bastion_hostname].fqdn, '@9.0.0.2') }}"
+  delay: 20
+  retries: 30
+  until: lookup('community.general.dig', hostvars[_bastion_hostname].fqdn, '@9.0.0.2') == hostvars[_bastion_hostname].publicip
+
+- name: Set kubeconfig_path and cluster_api_url facts
+  ansible.builtin.set_fact:
+    cluster_api_url: "{{ 'https://' + hostvars[_bastion_hostname].fqdn + ':6443' }}"
+    cluster_domain: "{{ fyre_cluster_domain }}"
+    cluster_fqdn: "{{ hostvars[_bastion_hostname].fqdn }}"
+    cluster_publicip: "{{ _bastion_publicip }}"
+    cluster_nip_fqdn: "{{ _bastion_publicip + '.nip.io' }}"
+    kubeconfig_path: "{{ cluster_dir + '/kubeconfig' }}"
+    services_host: "{{ _bastion_hostname }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- name: Create cluster specific ssh config
+  ansible.builtin.set_fact:
+    _ssh_config_content: |
+      Host {{ _bastion_hostname + ' ' + _bastion_hostname + '.' + fyre_cluster_domain }}
+          Hostname {{ _bastion_hostname + '.' + fyre_cluster_domain }}
+          IdentityFile {{ _ssh_paths.prvkey }}
+          IdentitiesOnly yes
+          UserKnownHostsFile /dev/null
+          StrictHostKeyChecking accept-new
+      {% for hostname in groups['cluster_nodes'] | default([]) %}
+      {% if hostname != _bastion_hostname %}
+
+      Host {{ hostname + ' ' + hostname + '.' + fyre_cluster_domain }}
+          IdentityFile {{ _ssh_paths.prvkey }}
+          IdentitiesOnly yes
+          UserKnownHostsFile /dev/null
+          StrictHostKeyChecking accept-new
+          ProxyCommand ssh -q -F {{ _ssh_paths.config }} {{ remote_user + '@' + _bastion_hostname }} -W %h:%p
+      {% endif %}
+      {% endfor %}
+    dest: "{{ _ssh_paths.config }}"
+    mode: '0600'
+  vars:
+    remote_user: "{{ hostvars['playbook-facts'].options.remote_user }}"

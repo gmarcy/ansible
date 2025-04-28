@@ -5,9 +5,11 @@
   become: false
   gather_facts: false
   tags: cluster_facts
+  vars:
+    common_cluster_facts_gathered: "{{ hostvars['cluster-facts'].common_cluster_facts_gathered | default(false) }}"
   roles:
   - role: gmarcy.ansible.end_current_play
-    when: inventory_hostname == 'cluster-facts' or cluster_facts_role is not defined
+    when: common_cluster_facts_gathered or inventory_hostname == 'cluster-facts' or cluster_facts_role is not defined
   - role: gmarcy.ansible.include_dynamic_role
     dynamic_role: "{{ cluster_facts_role }}"
 
@@ -16,6 +18,8 @@
   gather_facts: false
   tags: cluster_facts
   roles:
+  - role: gmarcy.ansible.end_current_play
+    when: common_cluster_facts_gathered | default(false)
   - role: gmarcy.ansible.update_shared_kubeconfig
     when: kubeconfig_path is defined
 
@@ -23,7 +27,11 @@
   hosts: playbook-secrets
   gather_facts: false
   tags: cluster_facts
+  vars:
+    common_cluster_facts_gathered: "{{ hostvars['cluster-facts'].common_cluster_facts_gathered | default(false) }}"
   roles:
+  - role: gmarcy.ansible.end_current_play
+    when: common_cluster_facts_gathered
   - role: gmarcy.ansible.include_dynamic_role
     dynamic_role: "{{ hostvars['cluster-facts'].cluster_secrets_role }}"
     when: hostvars['cluster-facts'].cluster_secrets_role is defined
@@ -32,8 +40,19 @@
   hosts: "{{ groups['all_nodes'] | default('cluster-facts') }}"
   gather_facts: false
   tags: cluster_facts
+  vars:
+    common_cluster_facts_gathered: "{{ hostvars['cluster-facts'].common_cluster_facts_gathered | default(false) }}"
   roles:
   - role: gmarcy.ansible.end_current_play
-    when: inventory_hostname == 'cluster-facts'
+    when: common_cluster_facts_gathered or inventory_hostname == 'cluster-facts'
   - role: gmarcy.ansible.setup_ansible_host
   - role: gmarcy.ansible.gather_host_facts
+
+- name: Mark that we have completed the plays in this playbook
+  hosts: cluster-facts
+  gather_facts: false
+  tags: cluster_facts
+  tasks:
+  - name: Set common_cluster_facts_gathered fact
+    ansible.builtin.set_fact:
+      common_cluster_facts_gathered: true
