@@ -49,6 +49,7 @@
   loop:
     - "{{ autowas_cfg_install_path_basedir + '/.ibm' }}"
     - '/etc/.ibm'
+    - '/tmp/autowas/buildcache'
   register: _result
   vars:
     autowas_cfg_install_path_basedir: "{{ hostvars['autowas-facts'].options.autowas_cfg_install_path_basedir }}"
