@@ -57,6 +57,7 @@
       vars:
         ssh_user: "{{ params.remote_user | default(hostvars['playbook-facts'].options.remote_user) }}"
       delegate_to: "{{ item }}"
+      throttle: 1
 
   vars:
     ssh_keytype: "{{ params.ssh_keytype | default(hostvars['localhost-facts'].options.ssh_keytype) }}"
