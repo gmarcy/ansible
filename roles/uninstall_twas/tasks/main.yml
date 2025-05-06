@@ -11,6 +11,7 @@
         executable: /bin/bash
       register: _result
       changed_when: _result.start != None
+      loop: [1, 2]
 
     - name: Create the ~/.cache/autowas folder
       ansible.builtin.file:
