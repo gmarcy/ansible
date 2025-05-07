@@ -1,6 +1,7 @@
 .secrets
 .tox
 .vscode
+ansible.cfg
 container_secrets
 inventory
 releases
