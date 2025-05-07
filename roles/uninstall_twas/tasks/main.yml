@@ -4,6 +4,14 @@
   name: Tasks which are only performed on the first VM
   block:
 
+    - name: Nuke tWAS server processes
+      ansible.builtin.shell:
+        chdir: "{{ autowas_config_dir }}"
+        cmd: source {{ autowas_env_script }} && cfg nuke
+        executable: /bin/bash
+      register: _result
+      changed_when: _result.start != None
+
     - name: Uninstall tWAS server
       ansible.builtin.shell:
         chdir: "{{ autowas_config_dir }}"
@@ -11,7 +19,6 @@
         executable: /bin/bash
       register: _result
       changed_when: _result.start != None
-      loop: [1, 2]
 
     - name: Create the ~/.cache/autowas folder
       ansible.builtin.file:
