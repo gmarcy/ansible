@@ -4,7 +4,7 @@
   ansible.builtin.user:
     name: "{{ _user_name }}"
     groups: "{{ _user_groups if (_user_groups is defined) else omit }}"
-    append: true
+    append: "{{ true if (_user_groups is defined) else omit }}"
     umask: '0022'
   become: true
   become_user: root
