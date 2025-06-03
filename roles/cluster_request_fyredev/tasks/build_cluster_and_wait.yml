@@ -14,7 +14,7 @@
     timeout: 60
   loop: "{{ lookup('file', cluster_dir + '/fyredev_build_req.yml') | from_yaml }}"
   loop_control:
-    label: "{{ item.hostname | first }}"
+    label: "{{ item.hostname if (item.hostname is defined) else (item.node_array | map(attribute='hostname') | flatten) | join(' ') }}"
   vars:
     request_body: "{{ item }}"
   register: _result_build_check_config
@@ -27,11 +27,11 @@
   ansible.builtin.assert:
     that: json.deployable
     msg: "{{ [json.details] + (json.errors | default([])) }}"
-  loop: "{{ cluster_hostnames | zip(_result_build_check_config.results | map(attribute='json')) }}"
+  loop: "{{ _hosts_for_site_map.keys() }}"
   loop_control:
-    label: "{{ item[0] }}"
+    loop_var: site
   vars:
-    json: "{{ item[1] }}"
+    json: "{{ _result_build_check_config.results | selectattr('item.site', '==', site) | map(attribute='json') | first }}"
 
 - name: Build Fyre stack
   ansible.builtin.uri:
@@ -46,6 +46,8 @@
     status_code: [200, 400]
     timeout: 60
   loop: "{{ lookup('file', cluster_dir + '/fyredev_build_req.yml') | from_yaml }}"
+  loop_control:
+    label: "{{ item.hostname if (item.hostname is defined) else (item.node_array | map(attribute='hostname') | flatten) | join(' ') }}"
   vars:
     request_body: "{{ item }}"
   register: _result_build_request
@@ -76,7 +78,10 @@
 - name: Set fact for request_id
   ansible.builtin.set_fact:
     _request_ids: "{{ response_json | map(attribute='request_id') }}"
-    _cluster_missing_vm_ids: "{{ response_json | map(attribute='vm_id') }}"
+    _cluster_missing_vm_ids: "{{ vm_id + vm_ids | flatten }}"
+  vars:
+    vm_id: "{{ response_json | map(attribute='vm_id', default=[]) | flatten }}"
+    vm_ids: "{{ response_json | map(attribute='vm_ids', default=[]) | flatten }}"
 
 - name: Wait until cluster has completed operations
   ansible.builtin.uri:
