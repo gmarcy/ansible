@@ -18,7 +18,7 @@
   register: _result
   changed_when: not 'Nothing to do.' in _result.stdout_lines
 
-- name: Update tinyproxy.conf
+- name: Add allowed_network_cidr to config
   ansible.builtin.lineinfile:
     path: '/etc/tinyproxy/tinyproxy.conf'
     insertbefore: '^Allow 127.0.0.1$'
@@ -26,6 +26,43 @@
   vars:
     allowed_network_cidr: "{{ params.allowed_network_cidr }}"
   register: _result
+
+- when: params.filter_allow_patterns is defined or params.filter_deny_patterns is defined
+  name: Handle filter patterns
+  block:
+
+    - name: Assert that we are either allowing or denying patterns
+      ansible.builtin.assert:
+        that: params.filter_allow_patterns is not defined or params.filter_deny_patterns is not defined
+        msg: 'You can define either filter_allow_patterns or filter_deny_patterns but not both'
+
+    - name: Uncomment 'Filter "/etc/tinyproxy/filter"' line in config
+      ansible.builtin.lineinfile:
+        path: '/etc/tinyproxy/tinyproxy.conf'
+        regexp: '^#Filter "/etc/tinyproxy/filter"$'
+        line: 'Filter "/etc/tinyproxy/filter"'
+      register: _result
+
+    - when: params.filter_allow_patterns is defined
+      name: If we have allow filter patterns, we need to uncomment 'FilterDefaultDeny Yes' line in config
+      ansible.builtin.lineinfile:
+        path: '/etc/tinyproxy/tinyproxy.conf'
+        regexp: '^#FilterDefaultDeny Yes$'
+        line: 'FilterDefaultDeny Yes'
+      register: _result
+
+    - name: Create the filter file with the provided patterns
+      ansible.builtin.copy:
+        content: |
+          {% for pattern in filter_patterns %}
+          {{ pattern }}
+          {% endfor %}
+        dest: '/etc/tinyproxy/filter'
+        mode: '0644'
+      vars:
+        allowed_patterns: "{{ params.filter_allow_patterns | default([]) }}"
+        denied_patterns: "{{ params.filter_deny_patterns | default([]) }}"
+        filter_patterns: "{{ allowed_patterns + denied_patterns }}"
 
 - name: Enable and start the tinyproxy server
   ansible.builtin.command: |
