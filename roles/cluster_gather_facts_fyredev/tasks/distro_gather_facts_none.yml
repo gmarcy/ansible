@@ -107,4 +107,7 @@
       {% for bastion in groups['bastion_node'] | default([]) %}
           ProxyCommand ssh -q {{ hostvars[bastion].ansible_ssh_extra_args }} root@{{ bastion }} -W %h:%p
       {% endfor %}
+      {% if options.fyredev_ssh_proxy_command is defined %}
+          ProxyCommand {{ options.fyredev_ssh_proxy_command }}
+      {% endif %}
       {% endfor %}
