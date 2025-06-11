@@ -17,6 +17,7 @@
       register: _result_direnv
       changed_when: false
       no_log: true
+      until: (_result_direnv.stdout | from_json)['tag_name'] is defined
 
     - name: Get tag_name
       ansible.builtin.set_fact:

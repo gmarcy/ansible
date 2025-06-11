@@ -42,6 +42,7 @@
             comment: "{{ ssh_comment }}"
             regenerate: 'never'
           register: _result_keypair
+          changed_when: false
 
         - name: Set facts from keypair
           ansible.builtin.set_fact:
