@@ -30,7 +30,9 @@
   ansible.builtin.lineinfile:
     path: "{{ wasbld_folder + '/bootstrapping.properties' }}"
     regexp: '^keystore=/root/.ssh/id_rsa'
-    line: "{{ 'keystore=' + user_home + '/.cache/autowas/.keystore/id_rsa' }}"
+    line: "{{ 'keystore=' + autowas_cache_dir + '/.keystore/id_rsa' }}"
+  vars:
+    autowas_cache_dir: "{{ user_home + hostvars['autowas-facts'].options.autowas_cache_dir_suffix }}"
 
 - name: Download the archive to a temporary file
   ansible.builtin.get_url:
