@@ -44,7 +44,7 @@
   gather_facts: false
   tags: playbook_facts
   roles:
-  - role: load_host_vars_options
+  - role: gmarcy.ansible.load_host_vars_options
   - role: gmarcy.ansible.gather_localhost_facts
 
 - name: Load playbook secrets we will use during this playbook
@@ -53,27 +53,8 @@
   gather_facts: false
   tags: playbook_facts
   roles:
-  - role: load_host_vars_options
+  - role: gmarcy.ansible.load_host_vars_options
   - role: gmarcy.ansible.load_playbook_secrets
-  tasks:
-  - when: hostvars['cluster-facts'].vars_inventory.autowas_basedir is defined
-    block:
-    - when: hostvars['autowas-facts'].vars_inventory is not defined
-      name: Define autowas-facts vars_inventory
-      add_host:
-        name: 'autowas-facts'
-        vars_inventory:
-          autowas_archive_url: "{{ autowas_vars.autowas_archive_url }}"
-          autowas_basedir: "{{ autowas_vars.autowas_basedir }}"
-          autowas_config_dir: "{{ autowas_vars.autowas_config_dir }}"
-          autowas_config_file_suffix: "{{ autowas_vars.autowas_config_file_suffix }}"
-          autowas_cfg_ssh_user: "{{ autowas_vars.autowas_cfg_ssh_user }}"
-          autowas_cfg_install_path_basedir: "{{ autowas_vars.autowas_cfg_install_path_basedir }}"
-          autowas_regression_config_dir: "{{ autowas_vars.autowas_regression_config_dir }}"
-          autowas_was_level: "{{ autowas_vars.autowas_was_level }}"
-          autowas_was_release: "{{ autowas_vars.autowas_was_release }}"
-      vars:
-        autowas_vars: "{{ hostvars['cluster-facts'].vars_inventory }}"
 
 - name: Load options from host_vars, inventory, command line and environment
   hosts: all
@@ -81,7 +62,7 @@
   gather_facts: false
   tags: playbook_facts
   roles:
-  - role: load_host_vars_options
+  - role: gmarcy.ansible.load_host_vars_options
     when: not (options_loaded | default(false)) and (vars_host is defined or vars_inventory is defined)
 
 - name: Set playbook facts derived from cmdline and localhost facts

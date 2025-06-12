@@ -20,16 +20,16 @@
       register: _result
       changed_when: _result.start != None
 
-    - name: Create the ~/.cache/autowas folder
+    - name: Create the AutoWAS cache folder
       ansible.builtin.file:
-        path: "{{ user_home + '/.cache/autowas' }}"
+        path: "{{ autowas_cache_dir }}"
         state: directory
         mode: '0755'
       register: _result
 
     - name: Archive the contents of the autowas_config_dir
       community.general.archive:
-        dest: "{{ user_home + '/.cache/autowas/saved-' + now(fmt='%Y-%m-%dT%H:%M:%S') + '.tar.gz' }}"
+        dest: "{{ autowas_cache_dir + '/saved-' + now(fmt='%Y-%m-%dT%H:%M:%S') + '.tar.gz' }}"
         mode: '0644'
         path: "{{ autowas_config_dir }}"
         exclusion_patterns:
@@ -43,8 +43,8 @@
 
   vars:
     autowas_basedir: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
+    autowas_cache_dir: "{{ user_home + hostvars['autowas-facts'].options.autowas_cache_dir_suffix }}"
     autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
-    autowas_config_file: "{{ hostvars['autowas-facts'].options.autowas_config_file }}"
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
     install_marker: "{{ autowas_config_dir + '/.install_completed' }}"
     topology_marker: "{{ autowas_config_dir + '/.createTopology_completed' }}"

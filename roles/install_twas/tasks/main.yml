@@ -42,6 +42,22 @@
       delegate_to: 'autowas-facts'
       delegate_facts: true
 
+    - name: Update LIBERTY_LEVEL line
+      ansible.builtin.lineinfile:
+        path: "{{ template_path }}"
+        regexp: '^  LIBERTY_LEVEL = "latest"'
+        line: '  LIBERTY_LEVEL = "{% raw %}{{ autowas_liberty_level }}{% endraw %}"'
+      delegate_to: 'autowas-facts'
+      delegate_facts: true
+
+    - name: Update LIBERTY_JDK_LEVEL line
+      ansible.builtin.lineinfile:
+        path: "{{ template_path }}"
+        regexp: '^  LIBERTY_JDK_LEVEL = "17.0"'
+        line: '  LIBERTY_JDK_LEVEL = "{% raw %}{{ autowas_liberty_jdk_level }}{% endraw %}"'
+      delegate_to: 'autowas-facts'
+      delegate_facts: true
+
     - name: Update HOST_NAME_1 line
       ansible.builtin.lineinfile:
         path: "{{ template_path }}"
@@ -142,6 +158,9 @@
         second_server_fqdn: "{{ hostvars[groups['all_nodes'][1]].fqdn }}"
         autowas_cfg_ssh_user: "{{ hostvars['autowas-facts'].options.autowas_cfg_ssh_user }}"
         autowas_cfg_install_path_basedir: "{{ hostvars['autowas-facts'].options.autowas_cfg_install_path_basedir }}"
+        autowas_was_level: "{{ hostvars['autowas-facts'].options.autowas_was_level }}"
+        autowas_liberty_level: "{{ hostvars['autowas-facts'].options.autowas_liberty_level }}"
+        autowas_liberty_jdk_level: "{{ hostvars['autowas-facts'].options.autowas_liberty_jdk_level }}"
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
         autowas_ldap_password_secret: "{{ secrets.autowas_ldap_password }}"
         autowas_ihs_password_secret: "{{ secrets.autowas_ihs_password }}"
@@ -180,7 +199,6 @@
     autowas_basedir: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
     autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
     autowas_config_file_suffix: "{{ hostvars['autowas-facts'].options.autowas_config_file_suffix }}"
-    autowas_was_level: "{{ hostvars['autowas-facts'].options.autowas_was_level }}"
     autowas_was_release: "{{ hostvars['autowas-facts'].options.autowas_was_release }}"
     autowas_config_file: "{{ autowas_was_release + autowas_config_file_suffix }}"
     template_path: "{{ cluster_dir + '/' + autowas_config_file + '.j2' }}"
