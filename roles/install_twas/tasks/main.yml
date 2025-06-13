@@ -42,11 +42,29 @@
       delegate_to: 'autowas-facts'
       delegate_facts: true
 
-    - name: Update LIBERTY_LEVEL line
+    - name: Assert that only one of autowas_liberty_level or autowas_liberty_version is non-empty
+      ansible.builtin.assert:
+        that: >
+          (autowas_liberty_level | length == 0 and autowas_liberty_version | length == 0) or
+          (autowas_liberty_level | length > 0 and autowas_liberty_version | length == 0) or
+          (autowas_liberty_version | length > 0 and autowas_liberty_level | length == 0)
+        msg: 'You can only specify autowas_liberty_level or autowas_liberty_version but not both.'
+
+    - when: autowas_liberty_level | length > 0
+      name: Update LIBERTY_LEVEL line
       ansible.builtin.lineinfile:
         path: "{{ template_path }}"
         regexp: '^  LIBERTY_LEVEL = "latest"'
         line: '  LIBERTY_LEVEL = "{% raw %}{{ autowas_liberty_level }}{% endraw %}"'
+      delegate_to: 'autowas-facts'
+      delegate_facts: true
+
+    - when: autowas_liberty_version | length > 0
+      name: Update LIBERTY_VERSION line
+      ansible.builtin.lineinfile:
+        path: "{{ template_path }}"
+        regexp: '^  LIBERTY_VERSION=latest\(\$\(LIBERTY_RELEASE\)\)/\$\(LIBERTY_LEVEL\)'
+        line: '  LIBERTY_VERSION = "{% raw %}{{ autowas_liberty_version }}{% endraw %}"'
       delegate_to: 'autowas-facts'
       delegate_facts: true
 
@@ -159,7 +177,6 @@
         autowas_cfg_ssh_user: "{{ hostvars['autowas-facts'].options.autowas_cfg_ssh_user }}"
         autowas_cfg_install_path_basedir: "{{ hostvars['autowas-facts'].options.autowas_cfg_install_path_basedir }}"
         autowas_was_level: "{{ hostvars['autowas-facts'].options.autowas_was_level }}"
-        autowas_liberty_level: "{{ hostvars['autowas-facts'].options.autowas_liberty_level }}"
         autowas_liberty_jdk_level: "{{ hostvars['autowas-facts'].options.autowas_liberty_jdk_level }}"
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
         autowas_ldap_password_secret: "{{ secrets.autowas_ldap_password }}"
@@ -200,6 +217,8 @@
     autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
     autowas_config_file_suffix: "{{ hostvars['autowas-facts'].options.autowas_config_file_suffix }}"
     autowas_was_release: "{{ hostvars['autowas-facts'].options.autowas_was_release }}"
+    autowas_liberty_level: "{{ hostvars['autowas-facts'].options.autowas_liberty_level }}"
+    autowas_liberty_version: "{{ hostvars['autowas-facts'].options.autowas_liberty_version }}"
     autowas_config_file: "{{ autowas_was_release + autowas_config_file_suffix }}"
     template_path: "{{ cluster_dir + '/' + autowas_config_file + '.j2' }}"
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
