@@ -15,5 +15,6 @@ vars_host:
   autowas_regression_config_dir: '/opt/autowas/data/regression_configs'
   autowas_was_level: 'latest'
   autowas_was_release: 'WAS90X'
-  autowas_liberty_level: 'latest'
+  autowas_liberty_level: ''
+  autowas_liberty_version: ''
   autowas_liberty_jdk_level: '17.0'
