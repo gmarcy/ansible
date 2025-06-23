@@ -10,7 +10,7 @@
     task_to_check: task-install-sandbox
 
 - name: "Run any sandbox_prepare_roles when requested"
-  hosts: all_nodes
+  hosts: "{{ hostvars['sandbox-facts'].sandbox_prepare_hosts | default('all_nodes') }}"
   gather_facts: false
   tags: install_sandbox
   roles:

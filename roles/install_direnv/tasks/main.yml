@@ -28,6 +28,8 @@
         url: "{{ 'https://github.com/direnv/direnv/releases/download/' + tag_name + '/direnv.' + os_family + '-' + cpu_arch }}"
         dest: "{{ user_home + '/.local/bin/direnv' }}"
         mode: '0755'
+      register: _result
+      until: (_result is defined) and (_result.status_code in [200,304])
 
     - name: Add eval for direnv to ~/.bashrc
       ansible.builtin.lineinfile:
