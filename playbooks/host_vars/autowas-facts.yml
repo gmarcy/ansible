@@ -17,4 +17,6 @@ vars_host:
   autowas_was_release: 'WAS90X'
   autowas_liberty_level: ''
   autowas_liberty_version: ''
-  autowas_liberty_jdk_level: '17.0'
+  autowas_aphid_name: ''
+  autowas_aphid_server: ''
+  autowas_aphid_path: ''
