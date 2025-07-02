@@ -71,7 +71,7 @@
         extra_args: --user
       register: _result
 
-    - name: Install latest python modules with pip
+    - name: Install paramiko python module with pip
       ansible.builtin.pip:
         name:
           - paramiko
