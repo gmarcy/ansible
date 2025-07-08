@@ -69,7 +69,8 @@
           delegate_to: 'sandbox-facts'
           delegate_facts: true
 
-    - name: Set level facts
+    - when: hostvars['autowas-facts'].options.autowas_aphid_path | string | length == 0
+      name: Set level facts
       ansible.builtin.set_fact:
         wasbld_folder: "{{ wasbld_folder }}"
         zipper: "{{ 'https://rtpgsa.ibm.com/projects/w/was.build/botp/' + was_release + '/' + test_or_daily + '/' + was_level + '/linux/zipper' }}"
@@ -77,6 +78,18 @@
         was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
         was_level: "{{ hostvars['sandbox-facts'].options.was_level }}"
         wasbld_folder: "{{ user_home + '/wasbld/' + was_release + '-' + (was_level | regex_replace('\\.linux$', '')) }}"
+        test_or_daily: "{{ hostvars['sandbox-facts'].options.test_or_daily | default('test') }}"
+
+    - when: hostvars['autowas-facts'].options.autowas_aphid_path | string | length > 0
+      name: Set level facts
+      ansible.builtin.set_fact:
+        wasbld_folder: "{{ wasbld_folder }}"
+        zipper: "{{ 'https://' + autowas_aphid_server + '/buildserver/pbstorage/publish/ladybug/mantis_links/botp/' + was_release + '/daily/' + (autowas_aphid_path | string) + '.00.linux/linux/zipper' }}"
+      vars:
+        autowas_aphid_path: "{{ hostvars['autowas-facts'].options.autowas_aphid_path | string }}"
+        autowas_aphid_server: "{{ hostvars['autowas-facts'].options.autowas_aphid_server }}"
+        was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
+        wasbld_folder: "{{ user_home + '/wasbld/' + was_release + '-' + (autowas_aphid_path | string) }}"
         test_or_daily: "{{ hostvars['sandbox-facts'].options.test_or_daily | default('test') }}"
 
     - name: Create the wasbld folder
