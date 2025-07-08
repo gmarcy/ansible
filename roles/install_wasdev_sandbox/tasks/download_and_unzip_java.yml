@@ -36,7 +36,7 @@
 
 - name: Download the archive to a temporary file
   ansible.builtin.get_url:
-    url: "{{ zipper + '/linux_java.zip' }}"
+    url: "{{ java_url }}"
     dest: "{{ wasbld_folder + '/linux_java.zip.tmp' }}"
     force_basic_auth: true
     url_username: "{{ gsa_username }}"
@@ -44,6 +44,8 @@
     validate_certs: false
     mode: '0644'
   vars:
+    is_ladybug: "{{ hostvars['autowas-facts'].options.autowas_aphid_path | string | length > 0 }}"
+    java_url: "{{ zipper + ('/java.zip' if is_ladybug else '/linux_java.zip') }}"
     secrets: "{{ hostvars['playbook-secrets'].secrets }}"
     gsa_username_secret: "{{ secrets.gsa_username }}"
     gsa_password_secret: "{{ secrets.gsa_password }}"
