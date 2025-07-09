@@ -4,6 +4,20 @@ ansible_host: localhost
 ansible_connection: local
 ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
+fe_ftp_list:
+  - server: 'rtpgsa.raleigh.ibm.com'
+    path: '/gsa/rtpgsa/projects/w/was.build/botp'
+    userid: 'fe_ftp_userid'
+    password: 'fe_ftp_password'
+  - server: 'rtpgsa.raleigh.ibm.com'
+    path: '/gsa/rtpgsa/projects/w/was.build/WS'
+    userid: 'fe_ftp_userid'
+    password: 'fe_ftp_password'
+  - server: 'rtpgsa.raleigh.ibm.com'
+    path: '/gsa/rtpgsa/projects/w/was.build/github.ibm.com/IntelligentManagement'
+    userid: 'fe_ftp_userid'
+    password: 'fe_ftp_password'
+
 vars_host:
   sandbox_ssh_key: 'sandbox_ssh_key'
   sandbox_ssh_prefix: 'sandbox_'
