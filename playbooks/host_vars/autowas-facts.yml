@@ -13,6 +13,7 @@ vars_host:
   autowas_cfg_ssh_user: 'root'
   autowas_cfg_install_path_basedir: '/opt'
   autowas_regression_config_dir: '/opt/autowas/data/regression_configs'
+  autowas_gsa_server: 'rtpgsa.ibm.com'
   autowas_was_level: 'latest'
   autowas_was_release: 'WAS90X'
   autowas_liberty_level: ''

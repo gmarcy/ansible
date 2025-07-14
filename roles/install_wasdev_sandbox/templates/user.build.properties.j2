@@ -5,8 +5,8 @@ fe.download.dir={{ fe_ftp_download_dirs | join(',') }}
 fe.ftp.port=21
 
 prereq.source.type=ftp
-prereq.ftp.server=rtpgsa.ibm.com
+prereq.ftp.server={{ prereq_ftp_server }}
 prereq.ftp.userid={{ prereq_ftp_userid }}
 prereq.ftp.password={{ prereq_ftp_password }}
-prereq.root=/gsa/rtpgsa/projects/w/was.dev_tools/prereqs/
+prereq.root={{ prereq_root }}
 prereq.ftp.port=21
