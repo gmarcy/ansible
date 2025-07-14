@@ -49,7 +49,7 @@
         - name: Fetch the list of files in component test folder
           ansible.builtin.shell: |
             set -eo pipefail
-            echo 'ls -1' | sftp -q -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -o IdentityFile={{ ssh_keypair_path }} -b - {{ gsa_username }}@rtpgsa.ibm.com:/projects/w/was.build/botp//{{ was_release }}/{{ test_or_daily }}/
+            echo 'ls -1' | sftp -q -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new -o IdentityFile={{ ssh_keypair_path }} -b - {{ gsa_username }}@{{ gsa_server }}:{{ gsa_build_path }}/{{ was_release }}/{{ test_or_daily }}/
           vars:
             sandbox_ssh_prefix: "{{ hostvars['sandbox-facts'].options.sandbox_ssh_prefix }}"
             ssh_keypair_path: "{{ user_home + '/.ssh/' + sandbox_ssh_prefix + 'id_' + sandbox_ssh_keytype }}"
@@ -58,6 +58,8 @@
             secrets: "{{ hostvars['playbook-secrets'].secrets }}"
             gsa_username_secret: "{{ secrets.gsa_username }}"
             gsa_username: "{{ lookup(gsa_username_secret.module, gsa_username_secret.param) | trim }}"
+            gsa_server: "{{ hostvars['sandbox-facts'].options.gsa_server }}"
+            gsa_build_path: "{{ hostvars['sandbox-facts'].options.gsa_build_path }}"
           register: _result
           changed_when: _result.rc == 0
 
@@ -73,12 +75,14 @@
       name: Set level facts
       ansible.builtin.set_fact:
         wasbld_folder: "{{ wasbld_folder }}"
-        zipper: "{{ 'https://rtpgsa.ibm.com/projects/w/was.build/botp/' + was_release + '/' + test_or_daily + '/' + was_level + '/linux/zipper' }}"
+        zipper: "{{ 'https://' + gsa_server + gsa_build_path + '/' + was_release + '/' + test_or_daily + '/' + was_level + '/linux/zipper' }}"
       vars:
         was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
         was_level: "{{ hostvars['sandbox-facts'].options.was_level }}"
         wasbld_folder: "{{ user_home + '/wasbld/' + was_release + '-' + (was_level | regex_replace('\\.linux$', '')) }}"
         test_or_daily: "{{ hostvars['sandbox-facts'].options.test_or_daily | default('test') }}"
+        gsa_server: "{{ hostvars['sandbox-facts'].options.gsa_server }}"
+        gsa_build_path: "{{ hostvars['sandbox-facts'].options.gsa_build_path }}"
 
     - when: hostvars['autowas-facts'].options.autowas_aphid_path | string | length > 0
       name: Set level facts

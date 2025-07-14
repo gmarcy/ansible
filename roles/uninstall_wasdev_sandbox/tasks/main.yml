@@ -19,6 +19,7 @@
         - "{{ autowas_config_dir + '/setEnv.sh' }}"
         - "{{ autowas_config_dir + '/.downloadAutomation_completed' }}"
       register: _result
+      no_log: true
       vars:
         autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
         was_release: "{{ hostvars['sandbox-facts'].options.was_release }}"
