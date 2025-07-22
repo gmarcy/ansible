@@ -1,0 +1,54 @@
+---
+
+all:
+  hosts:
+    @@CLUSTER_NAME-rtp:
+      vars_host:
+        fyredev_description: 'Tinyproxy RTP SSH Proxy'
+        fyredev_site: 'rtp'
+    @@CLUSTER_NAME-svl:
+      vars_host:
+      - fyredev_description: 'Tinyproxy SVL SSH Proxy'
+        fyredev_site: 'svl'
+
+ungrouped:
+  hosts:
+    cluster-facts:
+      vars_inventory:
+        cluster_domain: dev.fyre.ibm.com
+        cluster_name: '@@CLUSTER_NAME'
+        cluster_provisioner: fyredev-provisioner
+        kubernetes_distro: none
+      cluster_hostnames:
+        - '@@CLUSTER_NAME-rtp'
+        - '@@CLUSTER_NAME-svl'
+    cmdline-facts:
+    fyredev-provisioner:
+      vars_inventory:
+        fyredev_public_network: true
+        fyredev_dns: true
+        fyredev_group_id: 52
+        fyredev_ember_count: 2
+        fyredev_ember_os: 'RedHat 9.4'
+        fyredev_description: 'Tinyproxy SSH Proxy Cluster'
+      post_provisioning_hosts: "{{ groups['all_nodes'] }}"
+      post_provisioning_roles:
+        - gmarcy.ansible.create_and_authorize_keypairs
+        - gmarcy.ansible.add_remote_user:
+            user_name: tinyproxy
+        - gmarcy.ansible.install_tinyproxy:
+            allowed_network_cidr: '9.0.0.0/8'
+            filter_allow_patterns:
+              - '.*\.dev\.fyre\.ibm\.com$'
+            proxy_dns_domain_suffix: '.dev.fyre.ibm.com'
+        - gmarcy.ansible.add_remote_ssh_access:
+            ssh_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEl/+WXzrfq5AndgfBFRXXt1JEWyxHq5Q1fXznNyeGom'
+            ssh_comment: 'gmarcy@us.ibm.com'
+    localhost-facts:
+      vars_inventory:
+        ssh_keytype: ed25519
+        ssh_keypair_name: fyre
+    playbook-facts:
+      vars_inventory:
+        remote_user: root
+    playbook-secrets:
