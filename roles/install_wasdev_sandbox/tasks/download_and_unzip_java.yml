@@ -34,6 +34,15 @@
   vars:
     autowas_cache_dir: "{{ user_home + hostvars['autowas-facts'].options.autowas_cache_dir_suffix }}"
 
+- name: Add/Remove WXS install root property when option is defined or undefined
+  ansible.builtin.lineinfile:
+    path: "{{ wasbld_folder + '/bootstrapping.properties' }}"
+    regexp: '^wxs.install.1.installRoot=.*'
+    line: "{{ 'wxs.install.1.installRoot=' + wxs_install_root }}"
+    state: "{{ 'present' if (wxs_install_root | length > 0) else 'absent' }}"
+  vars:
+    wxs_install_root: "{{ hostvars['sandbox-facts'].options.wxs_install_root | default('') }}"
+
 - name: Download the archive to a temporary file
   ansible.builtin.get_url:
     url: "{{ java_url }}"
