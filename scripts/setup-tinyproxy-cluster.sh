@@ -68,14 +68,14 @@ ssh ${ssh_options} root@${first_node_fqdn} mkdir -m 0775 -p /root/.fyre/clusters
 sed -e "s/@@CLUSTER_NAME/${cluster_name}/" ${script_dir}/.helpers/inventory.yml | \
   ssh ${ssh_options} root@${first_node_fqdn} tee /root/.fyre/clusters/inventory.yml > /dev/null
 
-if ssh ${ssh_options} root@${first_node_fqdn} test -s /root/.fyre/clusters/post-provisioning.yml
+if ssh ${ssh_options} root@${first_node_fqdn} test -s /root/.fyre/clusters/setup-tinyproxy-cluster.yml
 then
   echo ""
-  echo "Playbook located in /root/.fyre/clusters/post-provisioning.yml."
+  echo "Playbook located in /root/.fyre/clusters/setup-tinyproxy-cluster.yml."
 else
   echo ""
   echo "Creating playbook for provisioning proxy cluster VMs."
-  cat <<EOF | ssh ${ssh_options} root@${first_node_fqdn} tee /root/.fyre/clusters/post-provisioning.yml > /dev/null
+  cat <<EOF | ssh ${ssh_options} root@${first_node_fqdn} tee /root/.fyre/clusters/setup-tinyproxy-cluster.yml > /dev/null
 ---
 
 - import_playbook: gmarcy.ansible.gather_playbook_facts
@@ -86,6 +86,6 @@ fi
 
 echo ""
 echo "Running automation to provision proxy cluster VMs."
-ssh ${ssh_options} root@${first_node_fqdn} podman run --rm -i --pull newer --secret proxy_credentials.yml -v /root/.fyre/clusters:/home/runner/.kube/clusters ghcr.io/gmarcy/ansible:latest -i /home/runner/.kube/clusters/inventory.yml /home/runner/.kube/clusters/post-provisioning.yml
+ssh ${ssh_options} root@${first_node_fqdn} podman run --rm -i --pull newer --secret proxy_credentials.yml -v /root/.fyre/clusters:/home/runner/.kube/clusters ghcr.io/gmarcy/ansible:latest -i /home/runner/.kube/clusters/inventory.yml /home/runner/.kube/clusters/setup-tinyproxy-cluster.yml
 
 exit 0
