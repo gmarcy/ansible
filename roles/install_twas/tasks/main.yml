@@ -226,6 +226,75 @@
       register: _result
       changed_when: _result.start != None
 
+    - when: autowas_wxs_level | length > 0
+      name: Install WXS
+      block:
+
+        - name: Remove secure store files
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - '/tmp/secureStore'
+            - '/tmp/secureStorePwd'
+
+        - name: Create secure store password
+          ansible.builtin.copy:
+            content: |
+              your_secureStore_password
+            dest: '/tmp/secureStorePwd'
+
+        - name: Save WXS GSA credentials
+          ansible.builtin.command: |
+            /opt/IM/eclipse/tools/imutilsc saveCredential -userName "{{ gsa_username }}" -userPassword "{{ gsa_password }}" -secureStorageFile /tmp/secureStore -masterPasswordFile /tmp/secureStorePwd -url "{{ zipper + '/repository/' }}" -verbose
+          vars:
+            secrets: "{{ hostvars['playbook-secrets'].secrets }}"
+            gsa_username_secret: "{{ secrets.gsa_username }}"
+            gsa_password_secret: "{{ secrets.gsa_password }}"
+            gsa_username: "{{ lookup(gsa_username_secret.module, gsa_username_secret.param) | trim }}"
+            gsa_password: "{{ lookup(gsa_password_secret.module, gsa_password_secret.param) | trim }}"
+
+        - name: Install WXS standalone server
+          ansible.builtin.command: |
+            /opt/IM/eclipse/tools/imcl install {{ server_install_target }} -repositories "{{ zipper + '/repository/' }}" -installationDirectory {{ wxs_install_root }} -sharedResourcesDirectory /opt/IM-shared -acceptLicense -prompt -secureStorageFile /tmp/secureStore -masterPasswordFile /tmp/secureStorePwd
+          vars:
+            server_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_server_install_target }}"
+
+        - name: Install WXS client
+          ansible.builtin.command: |
+            /opt/IM/eclipse/tools/imcl install {{ client_install_target }} -repositories "{{ zipper + '/repository/' }}" -installationDirectory /opt/liberty/wlp -sharedResourcesDirectory /opt/IM-shared -acceptLicense -prompt -secureStorageFile /tmp/secureStore -masterPasswordFile /tmp/secureStorePwd
+          vars:
+            client_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_client_install_target }}"
+
+        - name: Starting Standalone WXS Catalog Service
+          ansible.builtin.command: |
+            {{ start_server }} cs -listenerPort 2810
+          environment:
+            JAVA_HOME: '/opt/WAS/java/8.0'
+
+        - name: Starting Standalone WXS Container Services
+          ansible.builtin.command: |
+            {{ start_server }} {{ item }} -objectGridFile {{ object_grid_file }} -deploymentPolicyFile {{ policy_file }} -catalogServiceEndPoints {{ hostvars[inventory_hostname].fqdn }}:2810
+          environment:
+            JAVA_HOME: '/opt/WAS/java/8.0'
+          loop:
+            - 'c1'
+            - 'c2'
+          vars:
+            object_grid_file: "{{ object_grid_path + '/gettingstarted/server/config/objectgrid.xml' }}"
+            policy_file: "{{ object_grid_path + '/gettingstarted/server/config/deployment.xml' }}"
+
+      vars:
+        gsa_server: "{{ hostvars['autowas-facts'].options.autowas_wxs_gsa_server }}"
+        gsa_build_path: "{{ hostvars['autowas-facts'].options.autowas_wxs_gsa_build_path }}"
+        wxs_release: "{{ hostvars['autowas-facts'].options.autowas_wxs_release + '.XSIM' }}"
+        wxs_level: "{{ hostvars['autowas-facts'].options.autowas_wxs_level + '.linux' }}"
+        test_or_daily: "{{ hostvars['autowas-facts'].options.autowas_wxs_test_or_daily }}"
+        zipper: "{{ 'https://' + gsa_server + gsa_build_path + '/' + wxs_release + '/' + test_or_daily + '/' + wxs_level + '/linux/zipper' }}"
+        wxs_install_root: "{{ hostvars['autowas-facts'].options.autowas_wxs_install_root | default('') }}"
+        object_grid_path: "{{ wxs_install_root + '/ObjectGrid' }}"
+        start_server: "{{ object_grid_path + '/bin/startXsServer.sh' }}"
+
   vars:
     cluster_dir: "{{ hostvars['cluster-facts'].cluster_dir }}"
     autowas_basedir: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
@@ -237,6 +306,7 @@
     autowas_aphid_name: "{{ hostvars['autowas-facts'].options.autowas_aphid_name }}"
     autowas_aphid_server: "{{ hostvars['autowas-facts'].options.autowas_aphid_server }}"
     autowas_aphid_path: "{{ hostvars['autowas-facts'].options.autowas_aphid_path }}"
+    autowas_wxs_level: "{{ hostvars['autowas-facts'].options.autowas_wxs_level | default('') }}"
     autowas_config_file: "{{ autowas_was_release + autowas_config_file_suffix }}"
     template_path: "{{ cluster_dir + '/' + autowas_config_file + '.j2' }}"
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
