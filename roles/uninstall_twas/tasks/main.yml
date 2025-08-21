@@ -4,6 +4,48 @@
   name: Tasks which are only performed on the first VM
   block:
 
+    - when: autowas_wxs_level | length > 0
+      name: Install WXS
+      block:
+
+        - name: Stopping Standalone WXS Container Services
+          ansible.builtin.command: |
+            {{ stop_server }} {{ item }} -catalogServiceEndPoints {{ hostvars[inventory_hostname].fqdn }}:2810
+          environment:
+            JAVA_HOME: '/opt/WAS/java/8.0'
+          loop:
+            - 'c2'
+            - 'c1'
+
+        - name: Stopping Standalone WXS Catalog Service
+          ansible.builtin.command: |
+            {{ stop_server }} cs -catalogServiceEndPoints {{ hostvars[inventory_hostname].fqdn }}:2810
+          environment:
+            JAVA_HOME: '/opt/WAS/java/8.0'
+
+        - name: Uninstall WXS client
+          ansible.builtin.command: |
+            /opt/IM/eclipse/tools/imcl uninstall {{ client_install_target }}
+          vars:
+            client_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_client_install_target }}"
+
+        - name: Uninstall WXS standalone server
+          ansible.builtin.command: |
+            /opt/IM/eclipse/tools/imcl uninstall {{ server_install_target }}
+          vars:
+            server_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_server_install_target }}"
+
+        - name: Remove the wxs_install_root folder
+          ansible.builtin.file:
+            path: "{{ wxs_install_root }}"
+            state: absent
+          register: _result
+
+      vars:
+        wxs_install_root: "{{ hostvars['autowas-facts'].options.autowas_wxs_install_root | default('') }}"
+        object_grid_path: "{{ wxs_install_root + '/ObjectGrid' }}"
+        stop_server: "{{ object_grid_path + '/bin/stopXsServer.sh' }}"
+
     - name: Nuke tWAS server processes
       ansible.builtin.shell:
         chdir: "{{ autowas_config_dir }}"
@@ -45,6 +87,7 @@
     autowas_basedir: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
     autowas_cache_dir: "{{ user_home + hostvars['autowas-facts'].options.autowas_cache_dir_suffix }}"
     autowas_config_dir: "{{ hostvars['autowas-facts'].options.autowas_config_dir }}"
+    autowas_wxs_level: "{{ hostvars['autowas-facts'].options.autowas_wxs_level | default('') }}"
     autowas_env_script: "{{ autowas_basedir + '/bin/AutoWASEnv.sh' }}"
     install_marker: "{{ autowas_config_dir + '/.install_completed' }}"
     topology_marker: "{{ autowas_config_dir + '/.createTopology_completed' }}"
