@@ -28,7 +28,7 @@
       ssh_public_key: "{{ pubkey | b64encode }}"
   no_log: "{{ noLog }}"
   loop:
-  - "{{ hostvars['localhost-facts'].local_home + '/.ssh/' + ssh_keypair_path_prefix + 'id_' + ssh_keytype }}"
+    - "{{ hostvars['localhost-facts'].local_home + '/.ssh/' + ssh_keypair_path_prefix + 'id_' + ssh_keytype }}"
   loop_control:
     label: "{{ item }}"
   vars:
@@ -95,7 +95,7 @@
   ansible.builtin.assert:
     that: _result.json.status == 'success' or _result.json.owning_user is defined
     msg:
-    - "{{ _result.json.details }}"
+      - "{{ _result.json.details }}"
 
 - name: Set _cluster_exists fact
   ansible.builtin.set_fact:
@@ -121,12 +121,12 @@
 
 - name: Check for error status
   ansible.builtin.fail:
-   msg:
-   - "{{ _result_cluster_status.json.status }}"
-   - "{{ _result_cluster_status.json.details }}"
+    msg:
+      - "{{ _result_cluster_status.json.status }}"
+      - "{{ _result_cluster_status.json.details }}"
   when:
-  - _result_cluster_status.json.status is defined
-  - (_result_cluster_status.json.status) == 'error'
+    - _result_cluster_status.json.status is defined
+    - (_result_cluster_status.json.status) == 'error'
 
 - name: Check that all fyre nodes have a deployed status
   ansible.builtin.uri:
@@ -149,12 +149,12 @@
 
 - name: Check for error status after loop check
   ansible.builtin.fail:
-   msg:
-   - "{{ _result_cluster_status.json.status }}"
-   - "{{ _result_cluster_status.json.details }}"
+    msg:
+      - "{{ _result_cluster_status.json.status }}"
+      - "{{ _result_cluster_status.json.details }}"
   when:
-  - _result_cluster_status.json.status is defined
-  - (_result_cluster_status.json.status) == 'error'
+    - _result_cluster_status.json.status is defined
+    - (_result_cluster_status.json.status) == 'error'
 
 - name: Derive Info from Fyre Api
   ansible.builtin.set_fact:
@@ -190,8 +190,8 @@
 #   ansible.builtin.add_host:
 #     name: "{{ fyre_inf_hostname }}"
 #     groups:
-#     - all_nodes
-#     - infra_node
+#       - all_nodes
+#       - infra_node
 #     ansible_python_interpreter: /usr/bin/python3.12
 #     ansible_connection: ssh
 #     ansible_host: "{{ fyre_inf_public_ip }}"

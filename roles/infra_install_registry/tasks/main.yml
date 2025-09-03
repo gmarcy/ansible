@@ -26,9 +26,9 @@
     - name: Install buildah if required
       ansible.builtin.package:
         name:
-        - buildah
-        - podman
-        - skopeo
+          - buildah
+          - podman
+          - skopeo
         state: present
 
     - name: Remove any old buildah container
@@ -74,10 +74,10 @@
         init: true
         state: stopped
         ports:
-        - "5000:5000"
+          - "5000:5000"
         volumes:
-        - "{{ registry_auth_path_base + ':/auth:z' }}"
-        - "{{ registry_certs_path_base + ':/certs:z' }}"
+          - "{{ registry_auth_path_base + ':/auth:z' }}"
+          - "{{ registry_certs_path_base + ':/certs:z' }}"
         env:
           REGISTRY_AUTH: htpasswd
           REGISTRY_AUTH_HTPASSWD_REALM: Registry

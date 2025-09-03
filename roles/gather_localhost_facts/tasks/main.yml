@@ -3,15 +3,15 @@
 - name: Gather facts
   ansible.builtin.setup:
     filter:
-    - 'ansible_architecture'
-    - 'ansible_distribution'
-    - 'ansible_env'
-    - 'ansible_os_family'
-    - 'ansible_user_dir'
-    - 'ansible_user_id'
+      - 'ansible_architecture'
+      - 'ansible_distribution'
+      - 'ansible_env'
+      - 'ansible_os_family'
+      - 'ansible_user_dir'
+      - 'ansible_user_id'
     gather_subset:
-    - '!all'
-    - 'network'
+      - '!all'
+      - 'network'
 
 - name: Clear ansible_facts
   ansible.builtin.set_fact:

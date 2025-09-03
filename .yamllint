@@ -25,7 +25,6 @@ rules:
   empty-values: disable
   hyphens: enable
   indentation:
-    level: warning
     indent-sequences: consistent
     spaces: 2
   key-duplicates: enable

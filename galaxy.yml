@@ -10,7 +10,7 @@ namespace: gmarcy
 name: ansible
 
 # The version of the collection. Must be compatible with semantic versioning
-version: 1.0.0
+version: 1.0.1
 
 # The path to the Markdown (.md) readme file. This path is relative to the root of the collection
 readme: README.md
@@ -42,11 +42,11 @@ tags: []
 # L(specifiers,https://python-semanticversion.readthedocs.io/en/latest/#requirement-specification). Multiple version
 # range specifiers can be set and are separated by ','
 dependencies:
-  ansible.posix: '==1.5.4'
-  community.general: '==9.0.1'
-  community.okd: '==4.0.0'
-  containers.podman: '==1.15.1'
-  kubernetes.core: '==5.0.0'
+  ansible.posix: '==2.1.0'
+  community.general: '==11.2.1'
+  community.okd: '==4.0.2'
+  containers.podman: '==1.17.0'
+  kubernetes.core: '==5.4.0'
 
 # The URL of the originating SCM repository
 repository: http://github.com/gmarcy/ansible-automation

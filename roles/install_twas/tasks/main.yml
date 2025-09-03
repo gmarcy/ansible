@@ -43,6 +43,7 @@
       delegate_facts: true
 
     - when: autowas_aphid_name | length > 0
+      name: Update APHID_NAME line
       ansible.builtin.lineinfile:
         path: "{{ template_path }}"
         regexp: '^  APHID_NAME = ""'
@@ -51,6 +52,7 @@
       delegate_facts: true
 
     - when: autowas_aphid_server | length > 0
+      name: Update APHID_SERVER line
       ansible.builtin.lineinfile:
         path: "{{ template_path }}"
         regexp: '^  APHID_SERVER = ""'
@@ -59,6 +61,7 @@
       delegate_facts: true
 
     - when: autowas_aphid_path | string | length > 0
+      name: Update APHID_PATH line
       ansible.builtin.lineinfile:
         path: "{{ template_path }}"
         regexp: '^  APHID_PATH = ""'
@@ -243,6 +246,7 @@
             content: |
               your_secureStore_password
             dest: '/tmp/secureStorePwd'
+            mode: '0644'
 
         - name: Save WXS GSA credentials
           ansible.builtin.command: |
@@ -253,24 +257,28 @@
             gsa_password_secret: "{{ secrets.gsa_password }}"
             gsa_username: "{{ lookup(gsa_username_secret.module, gsa_username_secret.param) | trim }}"
             gsa_password: "{{ lookup(gsa_password_secret.module, gsa_password_secret.param) | trim }}"
+          changed_when: false
 
         - name: Install WXS standalone server
           ansible.builtin.command: |
             /opt/IM/eclipse/tools/imcl install {{ server_install_target }} -repositories "{{ zipper + '/repository/' }}" -installationDirectory {{ wxs_install_root }} -sharedResourcesDirectory /opt/IM-shared -acceptLicense -prompt -secureStorageFile /tmp/secureStore -masterPasswordFile /tmp/secureStorePwd
           vars:
             server_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_server_install_target }}"
+          changed_when: false
 
         - name: Install WXS client
           ansible.builtin.command: |
             /opt/IM/eclipse/tools/imcl install {{ client_install_target }} -repositories "{{ zipper + '/repository/' }}" -installationDirectory /opt/liberty/wlp -sharedResourcesDirectory /opt/IM-shared -acceptLicense -prompt -secureStorageFile /tmp/secureStore -masterPasswordFile /tmp/secureStorePwd
           vars:
             client_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_client_install_target }}"
+          changed_when: false
 
         - name: Starting Standalone WXS Catalog Service
           ansible.builtin.command: |
             {{ start_server }} cs -listenerPort 2810
           environment:
             JAVA_HOME: '/opt/WAS/java/8.0'
+          changed_when: false
 
         - name: Starting Standalone WXS Container Services
           ansible.builtin.command: |
@@ -283,6 +291,7 @@
           vars:
             object_grid_file: "{{ object_grid_path + '/gettingstarted/server/config/objectgrid.xml' }}"
             policy_file: "{{ object_grid_path + '/gettingstarted/server/config/deployment.xml' }}"
+          changed_when: false
 
       vars:
         gsa_server: "{{ hostvars['autowas-facts'].options.autowas_wxs_gsa_server }}"

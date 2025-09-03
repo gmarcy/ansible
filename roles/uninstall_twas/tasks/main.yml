@@ -16,24 +16,28 @@
           loop:
             - 'c2'
             - 'c1'
+          changed_when: false
 
         - name: Stopping Standalone WXS Catalog Service
           ansible.builtin.command: |
             {{ stop_server }} cs -catalogServiceEndPoints {{ hostvars[inventory_hostname].fqdn }}:2810
           environment:
             JAVA_HOME: '/opt/WAS/java/8.0'
+          changed_when: false
 
         - name: Uninstall WXS client
           ansible.builtin.command: |
             /opt/IM/eclipse/tools/imcl uninstall {{ client_install_target }}
           vars:
             client_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_client_install_target }}"
+          changed_when: false
 
         - name: Uninstall WXS standalone server
           ansible.builtin.command: |
             /opt/IM/eclipse/tools/imcl uninstall {{ server_install_target }}
           vars:
             server_install_target: "{{ hostvars['autowas-facts'].options.autowas_wxs_server_install_target }}"
+          changed_when: false
 
         - name: Remove the wxs_install_root folder
           ansible.builtin.file:

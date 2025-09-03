@@ -28,15 +28,15 @@
         state: directory
         mode: '0700'
       loop:
-      - "{{ registry_proxy_mirror_cache }}"
-      - "{{ registry_proxy_certs }}"
+        - "{{ registry_proxy_mirror_cache }}"
+        - "{{ registry_proxy_certs }}"
 
     - name: Install buildah if required
       ansible.builtin.package:
         name:
-        - buildah
-        - podman
-        - skopeo
+          - buildah
+          - podman
+          - skopeo
         state: present
 
     - name: Remove any old buildah container
@@ -78,10 +78,10 @@
     - name: Set _proxy_registry and _proxy_auth_registries facts
       ansible.builtin.set_fact:
         _proxy_registries:
-        - 'ghcr.io'
-        - 'quay.io'
+          - 'ghcr.io'
+          - 'quay.io'
         _proxy_auth_registries:
-        - "{{ 'quay.io:' + quay_io_user + ':' + quay_io_token }}"
+          - "{{ 'quay.io:' + quay_io_user + ':' + quay_io_token }}"
       vars:
         secrets: "{{ hostvars['playbook-secrets'].secrets }}"
         quay_io_user_secret: "{{ secrets.quay_io_user }}"
@@ -110,12 +110,12 @@
         init: true
         state: stopped
         ports:
-        - "3128:3128"
-        - "8081:8081"
-        - "8082:8082"
+          - "3128:3128"
+          - "8081:8081"
+          - "8082:8082"
         volumes:
-        - "{{ registry_proxy_mirror_cache + ':/registry_proxy_mirror_cache' }}"
-        - "{{ registry_proxy_certs + ':/ca' }}"
+          - "{{ registry_proxy_mirror_cache + ':/registry_proxy_mirror_cache' }}"
+          - "{{ registry_proxy_certs + ':/ca' }}"
         env:
           DEBUG: 'true'
           DEBUG_HUB: 'true'

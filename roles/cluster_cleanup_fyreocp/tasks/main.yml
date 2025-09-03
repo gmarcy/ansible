@@ -36,7 +36,7 @@
       ssh_public_key: "{{ pubkey | b64encode }}"
   no_log: "{{ noLog }}"
   loop:
-  - "{{ local_home + '/.ssh/' + ssh_keypair_path_prefix + 'id_' + ssh_keytype }}"
+    - "{{ local_home + '/.ssh/' + ssh_keypair_path_prefix + 'id_' + ssh_keytype }}"
   loop_control:
     label: "{{ item }}"
   vars:

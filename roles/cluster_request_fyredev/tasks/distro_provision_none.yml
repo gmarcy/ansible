@@ -83,8 +83,8 @@
     mode: '0755'
     state: "{{ item }}"
   loop:
-  - absent
-  - directory
+    - absent
+    - directory
 
 - name: Setup cluster site relationships
   block:

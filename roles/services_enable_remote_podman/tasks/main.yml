@@ -53,8 +53,8 @@
     name: "{{ item }}"
     state: absent
   loop:
-  - "{{ inventory_hostname }}"
-  - "{{ ansible_host }}"
+    - "{{ inventory_hostname }}"
+    - "{{ ansible_host }}"
   delegate_to: localhost-facts
   changed_when: false
 

@@ -46,7 +46,7 @@
         force_basic_auth: "{{ options.fyredev_force_basic_auth }}"
       loop: "{{ _result_delete_cluster_vms.results | map(attribute='json') }}"
       vars:
-         fyredev_request_id: "{{ item.request_id }}"
+        fyredev_request_id: "{{ item.request_id }}"
       register: _result_show_request
       changed_when: false
       delay: 20

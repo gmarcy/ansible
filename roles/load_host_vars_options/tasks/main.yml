@@ -7,10 +7,10 @@
 - name: Gather facts
   ansible.builtin.setup:
     filter:
-    - 'ansible_env'
-    - 'ansible_user_dir'
+      - 'ansible_env'
+      - 'ansible_user_dir'
     gather_subset:
-    - '!all'
+      - '!all'
   when: inventory_hostname == 'localhost-facts' and ansible_env is not defined
 
 - name: Clear ansible_facts

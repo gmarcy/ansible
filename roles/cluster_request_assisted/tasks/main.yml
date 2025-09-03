@@ -60,7 +60,7 @@
           http_proxy: "{{ http_proxy }}"
           network_type: "{{ 'OVNKubernetes' if (single_node) else 'OpenShiftSDN' }}"
           machine_networks:
-          - cidr: "{{ network_cidr }}"
+            - cidr: "{{ network_cidr }}"
           api_vip: "{{ api_vip | default(omit) }}"
           ingress_vip: "{{ ingress_vip | default(omit) }}"
           vip_dhcp_allocation: false
@@ -240,8 +240,8 @@
         body_format: json
         body:
           disks_selected_config:
-          - id: "{{ install_disk_id }}"
-            role: install
+            - id: "{{ install_disk_id }}"
+              role: install
         status_code: 201
       loop: "{{ cluster_install_disks }}"
       vars:
@@ -318,44 +318,44 @@
       name: Remove lvm volumes from any of our eligible disks
       block:
 
-      - name: Create a list of the pvs/vgs to check
-        ansible.builtin.set_fact:
-          pv_vg_to_check: "{{ pv_vg_to_check | default([]) | union([{'host': ssh_host, 'pv': pv_name, 'vg': vg_name}]) }}"
-        loop: "{{ pv_vg_names }}"
-        vars:
-          ssh_host: "{{ item[0] }}"
-          pv_name: "{{ item[1] | trim | split(':') | first }}"
-          vg_name: "{{ item[1] | trim | split(':') | last }}"
+        - name: Create a list of the pvs/vgs to check
+          ansible.builtin.set_fact:
+            pv_vg_to_check: "{{ pv_vg_to_check | default([]) | union([{'host': ssh_host, 'pv': pv_name, 'vg': vg_name}]) }}"
+          loop: "{{ pv_vg_names }}"
+          vars:
+            ssh_host: "{{ item[0] }}"
+            pv_name: "{{ item[1] | trim | split(':') | first }}"
+            vg_name: "{{ item[1] | trim | split(':') | last }}"
 
-      - name: Create a list of the pvs/vgs to remove
-        ansible.builtin.set_fact:
-          pv_vg_to_remove: "{{ pv_vg_to_remove | default([]) | union(matching_pvs) }}"
-        loop: "{{ eligible_disks }}"
-        vars:
-          matching_pvs: "{{ pv_vg_to_check | selectattr('host','==',item[0]) | selectattr('pv','match','^' + item[1]) }}"
-        when: matching_pvs | length > 0
+        - name: Create a list of the pvs/vgs to remove
+          ansible.builtin.set_fact:
+            pv_vg_to_remove: "{{ pv_vg_to_remove | default([]) | union(matching_pvs) }}"
+          loop: "{{ eligible_disks }}"
+          vars:
+            matching_pvs: "{{ pv_vg_to_check | selectattr('host','==',item[0]) | selectattr('pv','match','^' + item[1]) }}"
+          when: matching_pvs | length > 0
 
-      - name: Run ssh to remove any lvm volume groups
-        ansible.builtin.command:
-          ssh {{ ssh_user }}@{{ ssh_host }} sudo vgremove -f {{ vg_name }}
-        loop: "{{ pv_vg_to_remove }}"
-        vars:
-          ssh_host: "{{ item['host'] }}"
-          vg_name: "{{ item['vg'] }}"
-        register: _result
-        changed_when: _result is not defined
-        when: vg_name | length > 0
+        - name: Run ssh to remove any lvm volume groups
+          ansible.builtin.command:
+            ssh {{ ssh_user }}@{{ ssh_host }} sudo vgremove -f {{ vg_name }}
+          loop: "{{ pv_vg_to_remove }}"
+          vars:
+            ssh_host: "{{ item['host'] }}"
+            vg_name: "{{ item['vg'] }}"
+          register: _result
+          changed_when: _result is not defined
+          when: vg_name | length > 0
 
-      - name: Run ssh to remove lvm physical volumes
-        ansible.builtin.command:
-          ssh {{ ssh_user }}@{{ ssh_host }} sudo pvremove -f {{ pv_name }}
-        loop: "{{ pv_vg_to_remove }}"
-        vars:
-          ssh_host: "{{ item['host'] }}"
-          pv_name: "{{ item['pv'] }}"
-        register: _result
-        changed_when: _result is not defined
-        when: pv_name | length > 0
+        - name: Run ssh to remove lvm physical volumes
+          ansible.builtin.command:
+            ssh {{ ssh_user }}@{{ ssh_host }} sudo pvremove -f {{ pv_name }}
+          loop: "{{ pv_vg_to_remove }}"
+          vars:
+            ssh_host: "{{ item['host'] }}"
+            pv_name: "{{ item['pv'] }}"
+          register: _result
+          changed_when: _result is not defined
+          when: pv_name | length > 0
 
     - name: Run ssh to wipe the filesystems of all eligible disks
       ansible.builtin.command:

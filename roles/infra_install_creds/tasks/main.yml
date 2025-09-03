@@ -30,14 +30,14 @@
   ansible.builtin.set_fact:
     registry_url: "{{ cluster_fqdn + ':5000' }}"
     cluster_san:
-    - "{{ 'IP:' + cluster_ip }}"
-    - "{{ 'DNS:' + cluster_ip_fqdn }}"
-    - "{{ 'DNS:registry.' + cluster_ip_fqdn }}"
-    - "{{ 'DNS:cp-console.' + cluster_ip_fqdn }}"
-    - "{{ 'DNS:*.apps.' + cluster_ip_fqdn }}"
-    - "{{ 'DNS:' + cluster_fqdn }}"
-    - "{{ 'DNS:registry.' + cluster_fqdn }}"
-    - "{{ 'DNS:cp-console.' + cluster_fqdn }}"
+      - "{{ 'IP:' + cluster_ip }}"
+      - "{{ 'DNS:' + cluster_ip_fqdn }}"
+      - "{{ 'DNS:registry.' + cluster_ip_fqdn }}"
+      - "{{ 'DNS:cp-console.' + cluster_ip_fqdn }}"
+      - "{{ 'DNS:*.apps.' + cluster_ip_fqdn }}"
+      - "{{ 'DNS:' + cluster_fqdn }}"
+      - "{{ 'DNS:registry.' + cluster_fqdn }}"
+      - "{{ 'DNS:cp-console.' + cluster_fqdn }}"
 
 - when: not registry_artifacts_exist
   name: Get prerequisites
@@ -49,9 +49,9 @@
         state: directory
         mode: '0700'
       loop:
-      - "{{ ca_path_base }}"
-      - "{{ registry_certs_path_base }}"
-      - "{{ registry_auth_path_base }}"
+        - "{{ ca_path_base }}"
+        - "{{ registry_certs_path_base }}"
+        - "{{ registry_auth_path_base }}"
 
     - name: Add python3-pip package
       ansible.builtin.package:
@@ -71,9 +71,9 @@
     - name: Add python libraries we need
       ansible.builtin.pip:
         name:
-        - kubernetes
-        - cryptography
-        - passlib
+          - kubernetes
+          - cryptography
+          - passlib
         state: latest
         extra_args: --user
       when: ansible_distribution != 'Ubuntu'
@@ -137,10 +137,10 @@
         common_name: Ansible CA
         use_common_name_for_san: false
         basic_constraints:
-        - 'CA:TRUE'
+          - 'CA:TRUE'
         basic_constraints_critical: true
         key_usage:
-        - keyCertSign
+          - keyCertSign
         key_usage_critical: true
       register: ca_csr
 
