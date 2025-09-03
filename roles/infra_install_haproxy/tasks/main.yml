@@ -24,9 +24,9 @@
         state: directory
         mode: '0755'
       loop:
-      - "{{ user_home + '/.kube/haproxy' }}"
-      - "{{ user_home + '/.kube/haproxy/etc' }}"
-      - "{{ user_home + '/.kube/haproxy/lib' }}"
+        - "{{ user_home + '/.kube/haproxy' }}"
+        - "{{ user_home + '/.kube/haproxy/etc' }}"
+        - "{{ user_home + '/.kube/haproxy/lib' }}"
 
     - name: Write cluster specific haproxy.cfg
       ansible.builtin.copy:
@@ -147,9 +147,9 @@
     - name: Install buildah if required
       ansible.builtin.package:
         name:
-        - buildah
-        - podman
-        - skopeo
+          - buildah
+          - podman
+          - skopeo
         state: present
 
     - name: Remove any old buildah container

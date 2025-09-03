@@ -210,7 +210,7 @@
         kubeconfig: "{{ kubeconfig_path }}"
         kind: Pod
         label_selectors:
-        - app=rook-ceph-osd
+          - app=rook-ceph-osd
         namespace: rook-ceph
       register: _result
       delay: 20
@@ -244,7 +244,7 @@
         kubeconfig: "{{ kubeconfig_path }}"
         kind: Pod
         label_selectors:
-        - app=rook-ceph-mds
+          - app=rook-ceph-mds
         namespace: rook-ceph
       register: _result
       delay: 20
@@ -283,18 +283,18 @@
           spec:
             ingressClassName: "nginx"
             tls:
-             - hosts:
-               - "{{ 'rook-ceph.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
-               secretName: rook-ceph-tls
+              - hosts:
+                  - "{{ 'rook-ceph.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+                secretName: rook-ceph-tls
             rules:
-            - host: "{{ 'rook-ceph.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
-              http:
-                paths:
-                - path: /
-                  pathType: Prefix
-                  backend:
-                    service:
-                      name: rook-ceph-mgr-dashboard
-                      port:
-                        name: https-dashboard
+              - host: "{{ 'rook-ceph.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: rook-ceph-mgr-dashboard
+                          port:
+                            name: https-dashboard
       register: _result

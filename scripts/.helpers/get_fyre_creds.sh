@@ -60,7 +60,7 @@ do
   fi
   echo "Failed! Response:"
   cat ${cache_dir}/check_creds_output.json
-  ((retries++))
+  retries=$((retries+1))
   if [ ${retries} -gt 1 ]
   then
     echo "Retry failed.  Run the script again after addressing the source of this failure."

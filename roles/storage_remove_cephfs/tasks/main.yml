@@ -67,9 +67,9 @@
         name: rook-ceph
         namespace: rook-ceph
         patch:
-        - op: replace
-          path: /spec/cleanupPolicy/confirmation
-          value: 'yes-really-destroy-data'
+          - op: replace
+            path: /spec/cleanupPolicy/confirmation
+            value: 'yes-really-destroy-data'
         wait: true
       register: _result
       when: cephfs_is_present

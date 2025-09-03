@@ -4,6 +4,7 @@
   block:
 
     - when: params.ssh_key is defined
+      name: Process ssh keypair
       block:
 
         - name: Copy ssh key secret into ssh_path
@@ -33,6 +34,7 @@
             keypair_pubkey: "{{ _result.public_key }}"
 
     - when: params.ssh_key is not defined
+      name: No ssh keypair provided
       block:
 
         - name: Generate an OpenSSH keypair

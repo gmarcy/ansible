@@ -156,9 +156,9 @@
         state: directory
         mode: '0755'
       loop:
-      - "{{ user_home + '/.local/bin' }}"
-      - "{{ user_home + '/.ssh' }}"
-      - "{{ user_home + '/tmp' }}"
+        - "{{ user_home + '/.local/bin' }}"
+        - "{{ user_home + '/.ssh' }}"
+        - "{{ user_home + '/tmp' }}"
 
     - name: Download the kubectl cli for our version of kubernetes
       ansible.builtin.get_url:
@@ -191,11 +191,11 @@
         cluster_nip_fqdn: "{{ hostvars['cluster-facts'].cluster_nip_fqdn }}"
         k8s_version: "{{ hostvars['cluster-facts'].k8s_version }}"
         tls_san_args:
-        - "{{ '--tls-san=' + cluster_nip_fqdn }}"
-        - "{{ '--tls-san=console.' + cluster_nip_fqdn }}"
-        - "{{ '--tls-san=*.apps.' + cluster_nip_fqdn }}"
-        - "{{ '--tls-san=console.' + cluster_fqdn }}"
-        - "{{ '--tls-san=' + cluster_fqdn }}"
+          - "{{ '--tls-san=' + cluster_nip_fqdn }}"
+          - "{{ '--tls-san=console.' + cluster_nip_fqdn }}"
+          - "{{ '--tls-san=*.apps.' + cluster_nip_fqdn }}"
+          - "{{ '--tls-san=console.' + cluster_fqdn }}"
+          - "{{ '--tls-san=' + cluster_fqdn }}"
         environment_k3s:
           INSTALL_K3S_CHANNEL: "{{ 'v' + k8s_version.split('.')[:2] | join('.') }}"
           INSTALL_K3S_VERSION: "{{ k3s_latest_stable }}"

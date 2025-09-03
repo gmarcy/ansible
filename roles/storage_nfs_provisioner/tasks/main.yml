@@ -79,16 +79,16 @@
           allowPrivilegeEscalation: true
           allowPrivilegedContainer: false
           allowedCapabilities:
-          - SYS_RESOURCE
-          - DAC_READ_SEARCH
+            - SYS_RESOURCE
+            - DAC_READ_SEARCH
           fsGroup:
             type: MustRunAs
           groups: []
           readOnlyRootFilesystem: false
           requiredDropCapabilities:
-          - KILL
-          - MKNOD
-          - SYS_CHROOT
+            - KILL
+            - MKNOD
+            - SYS_CHROOT
           runAsUser:
             type: RunAsAny
           seLinuxContext:
@@ -96,14 +96,14 @@
           supplementalGroups:
             type: RunAsAny
           users:
-          - system:serviceaccount:{{ nfs_storage_namespace }}:nfs-provisioner
+            - system:serviceaccount:{{ nfs_storage_namespace }}:nfs-provisioner
           volumes:
-          - configMap
-          - downwardAPI
-          - emptyDir
-          - hostPath
-          - persistentVolumeClaim
-          - secret
+            - configMap
+            - downwardAPI
+            - emptyDir
+            - hostPath
+            - persistentVolumeClaim
+            - secret
         kind: SecurityContextConstraints
         name: nfs-provisioner
       register: _result
@@ -132,8 +132,8 @@
             fsGroup:
               rule: RunAsAny
             allowedCapabilities:
-            - DAC_READ_SEARCH
-            - SYS_RESOURCE
+              - DAC_READ_SEARCH
+              - SYS_RESOURCE
             runAsUser:
               rule: RunAsAny
             seLinux:
@@ -141,12 +141,12 @@
             supplementalGroups:
               rule: RunAsAny
             volumes:
-            - configMap
-            - downwardAPI
-            - emptyDir
-            - persistentVolumeClaim
-            - secret
-            - hostPath
+              - configMap
+              - downwardAPI
+              - emptyDir
+              - persistentVolumeClaim
+              - secret
+              - hostPath
         kind: PodSecurityPolicy
         name: nfs-provisioner
       register: _result
@@ -412,7 +412,7 @@
         api_key: "{{ api_key | default(omit) }}"
         kubeconfig: "{{ kubeconfig_path }}"
         label_selectors:
-        - app=nfs-provisioner
+          - app=nfs-provisioner
         kind: Service
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"

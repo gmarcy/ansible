@@ -10,10 +10,10 @@
       loop: "{{ groups['all_nodes'] }}"
       vars:
         ssh_known_hostnames:
-        - "{{ item }}"
-        - "{{ hostvars[item].fqdn }}"
-        - "{{ hostvars[item].publicip }}"
-        - "{{ hostvars[item].privateip }}"
+          - "{{ item }}"
+          - "{{ hostvars[item].fqdn }}"
+          - "{{ hostvars[item].publicip }}"
+          - "{{ hostvars[item].privateip }}"
       delegate_to: 'cluster-facts'
       delegate_facts: true
 

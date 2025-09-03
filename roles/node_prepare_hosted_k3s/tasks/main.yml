@@ -12,8 +12,8 @@
     - name: Install python3-pip, python3-libselinux and python3-libsemanage packages
       ansible.builtin.package:
         name:
-        - python3-setuptools
-        - python3-libsemanage
+          - python3-setuptools
+          - python3-libsemanage
         state: present
         use: "{{ hostvars[inventory_hostname].package_manager }}"
       become: true

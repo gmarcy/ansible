@@ -65,14 +65,14 @@
     - name: Only set _worker/_master when not quickburn
       ansible.builtin.set_fact:
         _worker:
-        - count: "{{ fyre_worker_quantity }}"
-          cpu: "{{ fyre_worker_cpu }}"
-          memory: "{{ fyre_worker_memory }}"
-          additional_disk: "{{ fyre_worker_additional_disk | default(omit) }}"
+          - count: "{{ fyre_worker_quantity }}"
+            cpu: "{{ fyre_worker_cpu }}"
+            memory: "{{ fyre_worker_memory }}"
+            additional_disk: "{{ fyre_worker_additional_disk | default(omit) }}"
         _master:
-        - count: "{{ fyre_master_quantity }}"
-          cpu: "{{ fyre_master_cpu }}"
-          memory: "{{ fyre_master_memory }}"
+          - count: "{{ fyre_master_quantity }}"
+            cpu: "{{ fyre_master_cpu }}"
+            memory: "{{ fyre_master_memory }}"
       when: fyre_ocptype != 'quickburn'
 
 - when: ocpVersion == 'custom'

@@ -55,8 +55,8 @@
       ansible.builtin.assert:
         that: status_ok
         msg:
-        - "{{ status_json['status'] | default('error') }}"
-        - "{{ status_json['details'] | default('Unknown failure with cluster status') }}"
+          - "{{ status_json['status'] | default('error') }}"
+          - "{{ status_json['details'] | default('Unknown failure with cluster status') }}"
 
     - name: Set fact for our cluster
       ansible.builtin.set_fact:
@@ -71,8 +71,8 @@
 - name: Assert that cluster has either deployed or failed
   ansible.builtin.assert:
     that:
-    - _cluster_status is defined
-    - _cluster_status['deployment_status'] is in ['deployed', 'failed']
+      - _cluster_status is defined
+      - _cluster_status['deployment_status'] is in ['deployed', 'failed']
     msg: "{{ 'Cluster deployment_status is ' + _cluster_status['deployment_status'] }}"
 
 - name: Set facts for fyre inf node
@@ -91,8 +91,8 @@
 #   ansible.builtin.add_host:
 #     name: "{{ item['hostname'] }}"
 #     groups:
-#     - all_nodes
-#     - infra_node
+#       - all_nodes
+#       - infra_node
 #     ansible_host: "{{ _fyre_inf_publicip }}"
 #     ansible_ssh_user: root
 #     vm_info: "{{ item }}"
@@ -152,21 +152,21 @@
     _cluster_kubeconfig:
       apiVersion: v1
       clusters:
-      - cluster: "{{ (_kubeconfig_encoded.content | b64decode | from_yaml)['clusters'][0]['cluster'] }}"
-        name: "{{ kc_cluster_name }}"
+        - cluster: "{{ (_kubeconfig_encoded.content | b64decode | from_yaml)['clusters'][0]['cluster'] }}"
+          name: "{{ kc_cluster_name }}"
       contexts:
-      - context:
-          cluster: "{{ kc_cluster_name }}"
-          namespace: "{{ kc_context_ns }}"
-          user: "{{ kc_user_name + '/' + kc_cluster_name }}"
-        name: "{{ kc_context_ns + '/' + kc_cluster_name + '/' + kc_user_name }}"
+        - context:
+            cluster: "{{ kc_cluster_name }}"
+            namespace: "{{ kc_context_ns }}"
+            user: "{{ kc_user_name + '/' + kc_cluster_name }}"
+          name: "{{ kc_context_ns + '/' + kc_cluster_name + '/' + kc_user_name }}"
       current-context: "{{ kc_context_ns + '/' + kc_cluster_name + '/' + kc_user_name }}"
       kind: Config
       preferences: {}
       users:
-      - name: "{{ kc_user_name + '/' + kc_cluster_name }}"
-        user:
-          token: "{{ api_key }}"
+        - name: "{{ kc_user_name + '/' + kc_cluster_name }}"
+          user:
+            token: "{{ api_key }}"
   vars:
     kc_cluster_name: "{{ _cluster_api_host_port | replace('.','-') }}"
     kc_user_name: 'kube:admin'

@@ -48,8 +48,8 @@
     mode: '0755'
     state: "{{ item }}"
   loop:
-  - absent
-  - directory
+    - absent
+    - directory
 
 - name: Write cluster specific fyre request body
   ansible.builtin.copy:

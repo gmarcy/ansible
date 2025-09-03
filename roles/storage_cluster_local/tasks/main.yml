@@ -47,9 +47,9 @@
     kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolume
     label_selectors:
-    - storage.openshift.com/owner-kind=LocalVolumeSet
-    - storage.openshift.com/owner-name=filesystem-local-volume-set
-    - storage.openshift.com/owner-namespace={{ local_storage_namespace }}
+      - storage.openshift.com/owner-kind=LocalVolumeSet
+      - storage.openshift.com/owner-name=filesystem-local-volume-set
+      - storage.openshift.com/owner-namespace={{ local_storage_namespace }}
   register: _result
 
 - name: Set fact for existing PersistentVolumes
@@ -86,7 +86,7 @@
         api_version: operators.coreos.com/v1alpha1
         kind: ClusterServiceVersion
         label_selectors:
-        - operators.coreos.com/local-storage-operator.{{ local_storage_namespace }}=
+          - operators.coreos.com/local-storage-operator.{{ local_storage_namespace }}=
         namespace: "{{ local_storage_namespace }}"
       register: _result
       delay: 10
@@ -147,8 +147,8 @@
         api_version: storage.k8s.io/v1
         kind: StorageClass
         label_selectors:
-        - local.storage.openshift.io/owner-name=filesystem-local-volume-set
-        - local.storage.openshift.io/owner-namespace={{ local_storage_namespace }}
+          - local.storage.openshift.io/owner-name=filesystem-local-volume-set
+          - local.storage.openshift.io/owner-namespace={{ local_storage_namespace }}
         name: "{{ local_storage_class }}"
       register: _result
       delay: 10
@@ -161,9 +161,9 @@
         kubeconfig: "{{ kubeconfig_path }}"
         kind: PersistentVolume
         label_selectors:
-        - storage.openshift.com/owner-kind=LocalVolumeSet
-        - storage.openshift.com/owner-name=filesystem-local-volume-set
-        - storage.openshift.com/owner-namespace={{ local_storage_namespace }}
+          - storage.openshift.com/owner-kind=LocalVolumeSet
+          - storage.openshift.com/owner-name=filesystem-local-volume-set
+          - storage.openshift.com/owner-namespace={{ local_storage_namespace }}
       register: _result
       delay: 10
       retries: 24

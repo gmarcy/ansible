@@ -65,7 +65,7 @@ fi
 echo ""
 echo "Creating Fyre inventory in /root/.fyre/clusters/inventory.yml."
 ssh ${ssh_options} root@${first_node_fqdn} mkdir -m 0775 -p /root/.fyre/clusters
-sed -e "s/@@CLUSTER_NAME/${cluster_name}/" ${script_dir}/.helpers/inventory.yml | \
+sed -e "s/@@CLUSTER_NAME/${cluster_name}/" ${script_dir}/.helpers/inventory.yml.tmpl | \
   ssh ${ssh_options} root@${first_node_fqdn} tee /root/.fyre/clusters/inventory.yml > /dev/null
 
 if ssh ${ssh_options} root@${first_node_fqdn} test -s /root/.fyre/clusters/setup-tinyproxy-cluster.yml

@@ -94,6 +94,7 @@
         return "PROXY {{ hostvars[inventory_hostname].fqdn }}:8888";
       }
     dest: '/usr/share/nginx/html/tinyproxy.pac'
+    mode: '0644'
   vars:
     proxy_dns_domain_suffix: "{{ params.proxy_dns_domain_suffix }}"
   register: _result
