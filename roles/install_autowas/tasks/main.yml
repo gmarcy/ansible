@@ -79,29 +79,21 @@
         extra_args: --user
       register: _result
 
-    - name: Check if autowas_basedir folder exists
-      ansible.builtin.stat:
+    - name: Create the autowas_basedir folder
+      ansible.builtin.file:
         path: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
-      register: _result_stat
+        state: directory
+        mode: '0755'
+      register: _result
 
-    - when: not _result_stat.stat.exists
-      name: Download autowas
-      block:
-
-        - name: Create the autowas_basedir folder
-          ansible.builtin.file:
-            path: "{{ hostvars['autowas-facts'].options.autowas_basedir }}"
-            state: directory
-            mode: '0755'
-          register: _result
-
-        - name: Download the archive and extract into autowas_basedir folder
-          ansible.builtin.unarchive:
-            src: "{{ hostvars['autowas-facts'].options.autowas_archive_url }}"
-            dest: "{{ hostvars['autowas-facts'].options.autowas_basedir + '/' }}"
-            remote_src: true
-            validate_certs: false
-          register: _result
+    - name: Download the archive and extract into autowas_basedir folder
+      ansible.builtin.unarchive:
+        src: "{{ hostvars['autowas-facts'].options.autowas_archive_url }}"
+        dest: "{{ hostvars['autowas-facts'].options.autowas_basedir + '/' }}"
+        remote_src: true
+        validate_certs: false
+        creates: "{{ hostvars['autowas-facts'].options.autowas_basedir + '/versionInfo' }}"
+      register: _result
 
     - name: List contents of versionInfo folder
       ansible.builtin.find:
