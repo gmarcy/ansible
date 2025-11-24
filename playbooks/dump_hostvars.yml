@@ -1,12 +1,35 @@
 ---
 
-- name: Diagnostics
-  hosts: "{{ 'localhost' if hostvars is not defined else 'all' }}"
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
   gather_facts: false
+  tags: dump_hostvars
+  roles:
+  - role: gmarcy.ansible.check_stop_before
+    task_to_check: task-dump-hostvars
+
+- name: Diagnostics
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tags: dump_hostvars
   tasks:
   - name: Lookup command-line arguments
     ansible.builtin.set_fact:
       cli_args: "{{ lookup('gmarcy.ansible.cli_args') }}"
-  - name: Print localhost hostvars
+  - name: Print hostvars
     ansible.builtin.debug:
-      var: hostvars['localhost']
+      var: hostmap
+    loop: "{{ hostvars_keys | default(['all']) }}"
+    vars:
+      hostmap: "{{ hostvars if item == 'all' else hostvars[item] }}"
+
+- name: Check if requested to stop here
+  hosts: playbook-facts
+  become: false
+  gather_facts: false
+  tags: dump_hostvars
+  roles:
+  - role: gmarcy.ansible.check_stop_after
+    task_to_check: task-dump-hostvars
